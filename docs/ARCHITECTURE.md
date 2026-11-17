@@ -107,8 +107,8 @@ interface with a fake for tests.
 | `explain/code_explainer.py` | Per-block code explanation grounded in the actual code and verdict. | code explanation | A2 |
 | `report/mapping.py` | Original-step ↔ Lean-block table with added/omitted/changed flags, built from the code's tags. | proof mapping | A3 |
 | `analysis/correction.py` | Proposes corrected code, **re-runs it through Lean**, labels it verified only if §3 passes. | enhanced errors | A4 |
-| `learning/glossary.py`, `learning/content/` | Curated, Lean-checked concept cards (intro, rw, …) selected by tactics found in the code. | learning content | A5 |
-| `learning/practice.py` | Short exercises whose answers are checked by the real Lean runner. | learning content | A5 |
+| `learning/cards.py`, `learning/detect.py` | Hand-written, Lean-checked concept cards (intro, rw, …) selected by the tactics found in the checked code, with where each occurs. | learning content | A5 |
+| `learning/practice.py` | Practice answers checked by the real Lean runner through the same verdict rules. | learning content | A5 |
 
 ## 5. Core data models (implemented in B1)
 

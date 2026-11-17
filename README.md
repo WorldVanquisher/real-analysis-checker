@@ -9,10 +9,12 @@ verification failed — in language a beginner can follow.
 > real Lean: a Streamlit app, a two-phase check (confirm the formal statement,
 > then verify the proof), student-friendly ε–N definitions, 8 Lean-verified
 > reference exercises, a strictly bounded repair loop, and error localization
-> with guarded explanations. Every LLM stage is tested with a stand-in LLM
-> against real Lean; **runs against the real Claude API are still pending an
-> API key.** Next up is B8 (basic release); see
-> [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
+> with guarded explanations. From the advanced version: Quick Check /
+> Learning Mode, a mapping from your reasoning to the Lean code, and
+> contextual Lean lessons with practice questions checked by Lean. Every LLM
+> stage is tested with a stand-in LLM against real Lean; **runs against the
+> real Claude API are still pending an API key**, and so is the `v0.1.0`
+> release. See [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## How it will work
 
@@ -179,8 +181,8 @@ report records which model actually answered.
 ## Tests
 
 ```bash
-pytest            # 300 unit tests: no network, no API key, no Lean (~10 s)
-pytest -m lean    # 30 real Lean + Mathlib tests (roughly a quarter of an hour)
+pytest            # 339 unit tests: no network, no API key, no Lean (~15 s)
+pytest -m lean    # 32 real Lean + Mathlib tests (roughly a quarter of an hour)
 pytest -m llm     # live Claude API calls: needs ANTHROPIC_API_KEY and costs money
 ```
 

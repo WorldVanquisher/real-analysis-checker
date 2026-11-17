@@ -176,6 +176,11 @@ def _strip_comments(text: str) -> tuple[str, list[Violation]]:
     return "".join(out), violations
 
 
+def strip_comments(text: str) -> str:
+    """The text with comments blanked out (newlines kept), as the screen sees it."""
+    return _strip_comments(text)[0]
+
+
 def _sorry_lines(code: str) -> list[int]:
     return [_line_of(code, m.start()) for m in _SORRY_RE.finditer(code)]
 

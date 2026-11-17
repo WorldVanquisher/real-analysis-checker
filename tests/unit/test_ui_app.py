@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from pipeline_helpers import PROBLEM, PROOF, make_checker, parse_answer
 from streamlit.testing.v1 import AppTest
-from translation_helpers import STATEMENT_OK, UNSOLVED
+from translation_helpers import OK, STATEMENT_OK, UNSOLVED
 
 from ra_checker.ui import services
 
@@ -77,6 +77,24 @@ def test_quick_check_is_concise_but_keeps_every_detail_available():
                   "How your steps were translated"):
         assert label in labels
     assert any("theorem student_claim" in c.value for c in at.code)  # inside the expander
+
+
+def test_learning_mode_shows_contextual_cards_and_lean_checked_practice():
+    checker, _, lean = make_checker(STATEMENT_OK, OK, OK)  # statement, proof, practice
+    at = start(checker)
+    at.radio(key="mode").set_value("Learning Mode")
+    at = fill(at).button(key="confirm").click().run()
+    assert "Learn the Lean in this proof" in texts(at.subheader)
+    titles = [e.label for e in at.expander]
+    for key_word in ("intro —", "obtain / rcases —", "use / refine —", "rw —", "exact —"):
+        assert any(t.startswith(key_word) for t in titles), titles
+    assert not any(t.startswith("calc") for t in titles)  # not used in this proof
+
+    at.text_area(key="practice_answer_intro").input("intro ε hε\nexact half_pos hε")
+    at = at.button(key="practice_check_intro").click().run()
+    assert not at.exception
+    assert "Lean accepted your answer." in texts(at.success)
+    assert len(lean.sources) == 3  # the practice answer really went to the Lean runner
 
 
 def test_switching_mode_after_a_check_does_not_recheck():

@@ -104,7 +104,11 @@ def main() -> None:
     if result is not None:
         st.divider()
         # The current toggle decides the view, so switching modes needs no re-check.
-        ui.report_view(*result, learning=mode is CheckMode.LEARNING)
+        ui.report_view(
+            *result,
+            learning=mode is CheckMode.LEARNING,
+            practice_runner=checker.lean if checker is not None else None,
+        )
 
 
 main()

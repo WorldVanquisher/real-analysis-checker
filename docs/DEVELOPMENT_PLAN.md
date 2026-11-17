@@ -241,7 +241,7 @@ Every advanced milestone keeps all B tests green; none may weaken verification.
 | ⏳ A2 | Lean code explanation, per tagged block, grounded in the actual code and verdict | Explanations reference only identifiers present in the code (checked). |
 | ✅ A3 | Proof mapping table | Added/omitted flags computed from tags, not LLM claims; "changed" judgments labelled as LLM-assessed. |
 | ⬜ A4 | Enhanced 7-part error explanation + corrected code | A correction is labelled "Verified by Lean" only after passing §3 rules; otherwise "Unverified suggestion". |
-| ⬜ A5 | Contextual learning cards + practice questions | Cards selected by tactics detected in code; every card example and practice answer is compiled by Lean in tests. |
+| ✅ A5 | Contextual learning cards + practice questions | Cards selected by tactics detected in code; every card example and practice answer is compiled by Lean in tests. |
 | ⬜ A6 | Hints-before-correction ladder in learning mode | Correction hidden until hints are requested. |
 | ⬜ A7 | Evaluation set and harness | Report covers the six spec metrics; human rubric documented. |
 | ⬜ A8 | Optional hardening: Lean in a no-network Docker container; persistent Lean REPL for speed | Same results as local runner on the eval set. |
@@ -263,6 +263,23 @@ student wrote). "Changed" is labelled as the translator's own assessment;
 "added" and "not translated" come from the code. 306 unit tests pass,
 including `AppTest` runs of both modes and a mode switch that does not re-run
 Lean; the toggle was checked in the live app.
+
+**A5 result.** `learning/cards.py` holds 17 hand-written cards — `theorem`,
+`by`, `intro`, `exact`, `apply`, `have`, `rw`, `simp`, `constructor`,
+`obtain`/`rcases`, `use`/`refine`, `linarith`, `calc`, `by_contra`,
+`by_cases`, `positivity`, `unfold` — each with its Lean meaning, its
+mathematical meaning and an example; 13 have a practice question with a hint
+and a model solution. `learning/detect.py` selects cards from the code Lean
+actually checked (comments and tags ignored, word boundaries respected, so
+`exact_mod_cast` does not select `exact`), in order of first appearance, and
+shows where each concept occurs in the student's proof, by step.
+`learning/practice.py` checks practice answers through the same safety screen,
+Python-assembled file, Lean run and verdict rules as everything else. In
+Learning Mode the app shows the cards; a hint is offered before the model
+solution. Real Lean compiles all 17 examples and 13 solutions (standard
+axioms only) and checks a right and a wrong practice answer; 339 unit tests
+pass, including an `AppTest` run where a practice answer goes to the Lean
+runner.
 
 ## Technical risks
 

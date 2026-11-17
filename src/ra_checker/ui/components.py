@@ -5,6 +5,10 @@ from __future__ import annotations
 
 import streamlit as st
 
+from ra_checker.lean.runner import LeanRunner
+from ra_checker.learning.cards import ALWAYS_SHOWN, ConceptCard
+from ra_checker.learning.detect import concepts_in, occurrences
+from ra_checker.learning.practice import PracticeResult, check_practice
 from ra_checker.models import CheckReport, VerificationStatus
 from ra_checker.pipeline import PendingCheck
 from ra_checker.report.mapping import build_mapping
@@ -68,6 +72,7 @@ def report_view(
     proof_attempts: tuple[ProofAttempt, ...] = (),
     *,
     learning: bool = False,
+    practice_runner: LeanRunner | None = None,
 ) -> None:
     """Quick Check: verdict and concise feedback, with every detail one click
     away in collapsed sections. Learning Mode: everything expanded, plus the
@@ -88,6 +93,7 @@ def report_view(
         _verification_result(report)
         _error_cards(report)
         _mapping_view(report)
+        _learning_section(report, practice_runner)
     else:
         _verification_result(report, concise=True)
         _error_cards(report)
@@ -171,6 +177,58 @@ def _mapping_view(report: CheckReport) -> None:
                     st.caption("No Lean code corresponds to this step.")
     if report.translation and report.translation.translator_notes:
         st.caption(f"Translator's notes: {report.translation.translator_notes}")
+
+
+def _learning_section(report: CheckReport, runner: LeanRunner | None) -> None:
+    if report.translation is None:
+        return
+    block = report.translation.tactic_block
+    st.subheader("Learn the Lean in this proof")
+    st.caption(
+        "Short explanations of the Lean used in your proof. Every example and model "
+        "solution below is checked by Lean in this project's test suite."
+    )
+    for card in concepts_in(block):
+        with st.expander(card.title):
+            st.markdown(f"**In Lean:** {card.lean_meaning}")
+            st.markdown(f"**In mathematics:** {card.math_meaning}")
+            hits = occurrences(card, block)
+            if hits:
+                st.markdown("**In your proof:**")
+                for tag, line in hits:
+                    where = f"step {tag}" if tag else "the proof"
+                    st.markdown(f"- {where}: `{line}`")
+            elif card.key in ALWAYS_SHOWN:
+                st.markdown("**In your proof:** the theorem line of the generated Lean code.")
+            st.markdown("**Example:**")
+            st.code(_as_theorem("demo", card.example_statement, card.example_proof), language="lean")
+            if card.practice is not None:
+                _practice(card, runner)
+
+
+def _practice(card: ConceptCard, runner: LeanRunner | None) -> None:
+    practice = card.practice
+    st.markdown(f"**Practice:** {practice.prompt}")
+    st.code(_as_theorem("practice", practice.statement, "-- your tactics here"), language="lean")
+    answer = st.text_area("Your tactics", key=f"practice_answer_{card.key}", height=90)
+    if st.checkbox("Show a hint", key=f"practice_hint_{card.key}"):
+        st.info(practice.hint)
+    if st.checkbox("Show a model solution", key=f"practice_solution_{card.key}"):
+        st.code(practice.solution, language="lean")
+    result_key = f"practice_result_{card.key}"
+    if st.button("Check with Lean", key=f"practice_check_{card.key}", disabled=runner is None):
+        with st.spinner("Lean is checking your answer (about 20 seconds)…"):
+            st.session_state[result_key] = check_practice(practice, answer, runner)
+    result: PracticeResult | None = st.session_state.get(result_key)
+    if result is not None:
+        (st.success if result.verified else st.error)(result.message)
+        for error in result.lean_errors:
+            st.code(error, language="text")
+
+
+def _as_theorem(name: str, statement: str, proof: str) -> str:
+    body = "\n".join(f"  {line}" if line else "" for line in proof.split("\n"))
+    return f"theorem {name} {statement} := by\n{body}"
 
 
 def _heading(text: str, show: bool) -> None:
