@@ -1,0 +1,8 @@
+# Only the Lean project's sources go into the sandbox image; never the
+# multi-GB lean/.lake build, the virtualenv, secrets or results.
+*
+!lean/lean-toolchain
+!lean/lakefile.toml
+!lean/lake-manifest.json
+!lean/RaChecker.lean
+!lean/RaChecker/

@@ -142,8 +142,9 @@ Lean `v4.36.0` with Mathlib `v4.36.0`.
    every check.
 
 3. **Check the installation** by running the real-Lean tests from the project
-   root (34 tests, about 20 minutes; each check loads Mathlib, about 22–30 s
-   on a typical Windows laptop):
+   root (59 tests, about 20 minutes, mostly the command-line runner loading
+   Mathlib for each check, about 22–30 s each on a typical Windows laptop; the
+   Docker sandbox tests are skipped unless the image below is built):
 
    ```bash
    pytest -m lean
@@ -155,6 +156,28 @@ Lean `v4.36.0` with Mathlib `v4.36.0`.
 
 The app finds `lake` on your PATH or in `~/.elan/bin`, so step 1's new
 terminal is only needed for running `lake` by hand.
+
+### Optional: run Lean in a Docker sandbox
+
+Lean can run code while it checks a file. The checker screens the generated
+Lean first (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §7), but a
+screen is not a sandbox. For stronger isolation, run Lean inside a container
+with no network. You need Docker (Docker Desktop on Windows and macOS). Build
+the image once from the project root; it downloads several GB, takes about
+14 GB of disk and took about 14 minutes on the development machine:
+
+```bash
+docker build -f docker/lean-sandbox.Dockerfile -t ra-checker-lean:v4.36.0 .
+```
+
+Then set `RA_LEAN_RUNNER=docker` (in `.env` or the environment). Every check
+then runs in the Lean REPL inside a container started with `--network none`,
+a read-only filesystem (only a 256 MB `/tmp` is writable), all Linux
+capabilities dropped, and memory, CPU and process limits; nothing from your
+computer is mounted. The image holds the same pinned Lean, Mathlib and
+RaChecker library as `lean/`, so the verdicts are the same. Rebuild the image
+after changing anything in `lean/`. In this mode the local Lean install from
+the steps above is not needed.
 
 ## Running the app
 
@@ -191,7 +214,8 @@ win over `.env`. Empty values count as unset.
 | `RA_LEAN_PROJECT_DIR` | `lean` | Lean project folder; relative paths are resolved from the project root. |
 | `RA_LEAN_TIMEOUT_S` | `120` | Wall-clock limit for one Lean run, in seconds (max 3600). |
 | `RA_LLM_TIMEOUT_S` | `300` | Time limit for one LLM request, in seconds (max 1800). |
-| `RA_LEAN_RUNNER` | `auto` | `auto`: keep Mathlib loaded in the Lean REPL if it is built, otherwise start Lean per check; `repl`: require the REPL; `cli`: always start Lean per check. |
+| `RA_LEAN_RUNNER` | `auto` | `auto`: keep Mathlib loaded in the Lean REPL if it is built, otherwise start Lean per check; `repl`: require the REPL; `cli`: always start Lean per check; `docker`: run the REPL in the no-network Docker sandbox. |
+| `RA_LEAN_DOCKER_IMAGE` | `ra-checker-lean:v4.36.0` | Image used when `RA_LEAN_RUNNER=docker`. |
 | `RA_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. |
 
 Logs never contain the API key: it is redacted, as is anything shaped like an
@@ -206,8 +230,8 @@ report records which model actually answered.
 ## Tests
 
 ```bash
-pytest            # 383 unit tests: no network, no API key, no Lean (~15 s)
-pytest -m lean    # 34 real Lean + Mathlib tests (~20 min; last run 19 min 8 s)
+pytest            # 404 unit tests: no network, no API key, no Lean (~25 s)
+pytest -m lean    # 59 real Lean + Mathlib tests (~20 min); the Docker ones skip without the image
 pytest -m llm     # live Claude API calls: needs ANTHROPIC_API_KEY and costs money
 ```
 
@@ -216,7 +240,10 @@ tricks such as `native_decide` and an injected axiom), timeouts, the 8
 reference exercises, the translation and repair stages, error localization,
 the whole pipeline with a stand-in LLM, corrections (verified only when Lean
 accepts them), every concept-card example and practice solution, and the
-evaluation set's reference statements.
+evaluation set's reference statements. They also check that the Lean REPL
+and the Docker sandbox give the same verdicts and error lines as the
+command-line runner on every file the first live evaluation checked, and that
+the sandbox really has no network and a read-only filesystem.
 
 ## Evaluation
 

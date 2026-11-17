@@ -33,7 +33,7 @@ import re
 import subprocess
 import threading
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from ra_checker.lean.assemble import HEADER_IMPORTS
@@ -73,6 +73,8 @@ class ReplLeanRunner:
         imports: Sequence[str] = HEADER_IMPORTS,
         max_checks_per_process: int = MAX_CHECKS_PER_PROCESS,
         start_timeout_s: float = START_TIMEOUT_S,
+        on_stop: Callable[[], None] | None = None,
+        version_command: Sequence[str] | None = None,
     ) -> None:
         self.project_dir = Path(project_dir)
         self.timeout_s = timeout_s
@@ -88,6 +90,9 @@ class ReplLeanRunner:
         self.imports = tuple(imports)
         self.max_checks = max_checks_per_process
         self.start_timeout_s = start_timeout_s
+        self._on_stop = on_stop  # e.g. remove the Docker container
+        self._version_command = tuple(version_command) if version_command else None
+        self._version: str | None = None
         self._lock = threading.Lock()
         self._proc: subprocess.Popen | None = None
         self._responses: queue.Queue = queue.Queue()
@@ -129,7 +134,18 @@ class ReplLeanRunner:
                            stdout=stdout, stderr=stderr, lean_version=self.lean_version())
 
     def lean_version(self) -> str | None:
-        return self.fallback.lean_version() if self.fallback else None
+        if self.fallback is not None:
+            return self.fallback.lean_version()
+        if self._version is None and self._version_command:
+            try:
+                done = subprocess.run(list(self._version_command), capture_output=True, text=True,
+                                      encoding="utf-8", errors="replace", timeout=120,
+                                      **_process_group_options())
+                if done.returncode == 0 and done.stdout.strip():
+                    self._version = done.stdout.strip().splitlines()[0]
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        return self._version
 
     def close(self) -> None:
         with self._lock:
@@ -219,6 +235,11 @@ class ReplLeanRunner:
                     pipe.close()
             except OSError:
                 pass
+        if self._on_stop is not None:
+            try:
+                self._on_stop()
+            except Exception:  # noqa: BLE001 — cleanup must never break a check
+                logger.warning("Lean REPL cleanup failed", exc_info=True)
 
     @staticmethod
     def _read_stdout(proc: subprocess.Popen, responses: queue.Queue) -> None:

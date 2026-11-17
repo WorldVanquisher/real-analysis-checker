@@ -1,4 +1,4 @@
-"""Builds the real Checker (Claude + local Lean), or explains what is missing.
+"""Builds the real Checker (Claude + Lean), or explains what is missing.
 Shared by the Streamlit app and the evaluation command line."""
 
 from __future__ import annotations
@@ -6,6 +6,7 @@ from __future__ import annotations
 from ra_checker.config import ConfigError, Settings, load_settings
 from ra_checker.lean.repl import ReplLeanRunner, find_repl
 from ra_checker.lean.runner import LeanUnavailableError, SubprocessLeanRunner
+from ra_checker.lean.sandbox import make_sandbox_runner
 from ra_checker.lean.warmup import WarmingLeanRunner
 from ra_checker.llm.client import AnthropicClient, LLMUnavailableError
 from ra_checker.logging_setup import configure_logging
@@ -31,7 +32,10 @@ def build_checker(settings: Settings | None = None) -> tuple[Checker | None, lis
     except LeanUnavailableError as exc:
         problems.append(str(exc))
     else:
-        lean_ready = (settings.lean_project_dir / ".lake" / "packages" / "mathlib").is_dir()
+        # In Docker mode, Lean and Mathlib live in the image, not on this machine.
+        lean_ready = settings.lean_runner == "docker" or (
+            settings.lean_project_dir / ".lake" / "packages" / "mathlib"
+        ).is_dir()
         if not lean_ready:
             problems.append(
                 "Mathlib is not set up in the Lean project: run `lake exe cache get` and "
@@ -46,7 +50,10 @@ def build_checker(settings: Settings | None = None) -> tuple[Checker | None, lis
 
 def choose_lean_runner(settings: Settings) -> SubprocessLeanRunner | ReplLeanRunner:
     """RA_LEAN_RUNNER: ``auto`` uses the REPL when it is built, ``repl`` requires
-    it, ``cli`` always starts Lean per check. Raises LeanUnavailableError."""
+    it, ``cli`` always starts Lean per check, ``docker`` runs the REPL in a
+    no-network container. Raises LeanUnavailableError."""
+    if settings.lean_runner == "docker":
+        return make_sandbox_runner(settings.lean_docker_image, settings.lean_timeout_s, settings.lean_project_dir)
     cli = SubprocessLeanRunner(settings.lean_project_dir, settings.lean_timeout_s)
     if settings.lean_runner == "cli":
         return cli

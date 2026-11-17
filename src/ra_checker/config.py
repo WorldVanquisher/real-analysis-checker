@@ -28,10 +28,12 @@ ENV_LEAN_PROJECT_DIR = "RA_LEAN_PROJECT_DIR"
 ENV_LEAN_TIMEOUT_S = "RA_LEAN_TIMEOUT_S"
 ENV_LLM_TIMEOUT_S = "RA_LLM_TIMEOUT_S"
 ENV_LEAN_RUNNER = "RA_LEAN_RUNNER"
+ENV_LEAN_DOCKER_IMAGE = "RA_LEAN_DOCKER_IMAGE"
 ENV_LOG_LEVEL = "RA_LOG_LEVEL"
 
-LeanRunnerMode = Literal["auto", "repl", "cli"]
-LEAN_RUNNER_MODES: tuple[str, ...] = ("auto", "repl", "cli")
+LeanRunnerMode = Literal["auto", "repl", "cli", "docker"]
+LEAN_RUNNER_MODES: tuple[str, ...] = ("auto", "repl", "cli", "docker")
+DEFAULT_LEAN_DOCKER_IMAGE = "ra-checker-lean:v4.36.0"
 
 DEFAULT_MODEL = "claude-opus-5-5"
 DEFAULT_LEAN_TIMEOUT_S = 120.0
@@ -60,6 +62,7 @@ class Settings(BaseModel):
     )
     llm_timeout_s: float = Field(default=DEFAULT_LLM_TIMEOUT_S, gt=0, le=MAX_LLM_TIMEOUT_S)
     lean_runner: LeanRunnerMode = "auto"
+    lean_docker_image: str = Field(default=DEFAULT_LEAN_DOCKER_IMAGE, min_length=1)
     log_level: LogLevel = "INFO"
 
     @property
@@ -114,6 +117,7 @@ def load_settings(
             get(ENV_LLM_TIMEOUT_S), ENV_LLM_TIMEOUT_S, DEFAULT_LLM_TIMEOUT_S, MAX_LLM_TIMEOUT_S
         ),
         lean_runner=_parse_choice(get(ENV_LEAN_RUNNER), ENV_LEAN_RUNNER, LEAN_RUNNER_MODES, "auto"),
+        lean_docker_image=get(ENV_LEAN_DOCKER_IMAGE) or DEFAULT_LEAN_DOCKER_IMAGE,
         log_level=_parse_log_level(get(ENV_LOG_LEVEL)),
     )
 

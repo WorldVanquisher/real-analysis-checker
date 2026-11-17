@@ -279,10 +279,34 @@ Lean can run arbitrary code at compile time (`#eval`, `run_cmd`, custom
 * `#print axioms` catches anything that slips past (e.g. `native_decide`
   introduces `Lean.ofReduceBool`).
 * Lean runs with a timeout from a temp directory; Python never invokes a shell.
+  Generated text never appears on a command line: it goes to Lean as a file
+  or, for the REPL, as JSON on standard input.
 
-Residual risk: a deny-list is not a sandbox. Running Lean inside a no-network
-Docker container is an optional hardening milestone (Docker is available on the
-development machine).
+A deny-list is not a sandbox. With `RA_LEAN_RUNNER=docker` (A8,
+`lean/sandbox.py`) Lean also runs inside a container built from
+`docker/lean-sandbox.Dockerfile`, which holds the same pinned Lean, Mathlib,
+RaChecker library and REPL as `lean/`. The container gets:
+
+* `--network none`, so nothing Lean runs can reach the network (the network
+  is used only while the image is built);
+* `--read-only`, with only a 256 MB `/tmp` tmpfs writable;
+* `--cap-drop ALL` and `no-new-privileges`;
+* `--memory 8g`, `--cpus 4` and `--pids-limit 512`;
+* no host folders mounted. The source goes in over standard input, and the
+  container runs as an unprivileged user.
+
+It is the same `ReplLeanRunner`, pointed at `docker run -i …` instead of a
+local process, so the verdict path does not change. There is no fallback to
+local Lean: a source with imports outside the base environment is refused.
+Stopping the REPL (timeout, crash, periodic restart, app exit) also removes
+the container. Tested on real Lean: same verdicts and error lines as local
+Lean on the 15 files of the first live evaluation, the hand-written cases and
+the reference exercises; inside the container a network request fails and
+writing outside `/tmp` fails; closing the runner leaves no container behind.
+
+Residual risk: the default `auto` mode still runs Lean directly on the host,
+behind the deny-list only. The container shares the host kernel, so Docker
+does not protect against kernel exploits.
 
 ## 8. Error analysis
 

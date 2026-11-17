@@ -243,7 +243,7 @@ Every advanced milestone keeps all B tests green; none may weaken verification.
 | ✅ A5 | Contextual learning cards + practice questions | Cards selected by tactics detected in code; every card example and practice answer is compiled by Lean in tests. |
 | ✅ A6 | Hints-before-correction ladder in learning mode | Correction hidden until hints are requested. |
 | ✅ A7 | Evaluation set and harness | Report covers the six spec metrics; human rubric documented. |
-| ⏳ A8 | Optional hardening: Lean in a no-network Docker container; persistent Lean REPL for speed | Same results as local runner on the eval set. |
+| ✅ A8 | Optional hardening: Lean in a no-network Docker container; persistent Lean REPL for speed | Same results as local runner on the eval set. |
 
 **A1 + A3 result.** The app has a Quick Check / Learning Mode toggle
 (`ui/app.py`); the current toggle decides the view, so switching after a check
@@ -347,7 +347,46 @@ killed, next check restarts it), crashes and rejected commands (runtime
 errors, never verdicts), a broken base environment, the periodic restart and
 delegation of other imports to the command-line runner.
 
-**A8, part 2 — Docker sandbox:** see below.
+**A8, part 2 — Docker sandbox (done).** `docker/lean-sandbox.Dockerfile`
+builds an image (`ra-checker-lean:v4.36.0`) with the same pinned Lean,
+Mathlib, RaChecker library and Lean REPL as `lean/`, running as an
+unprivileged user. The build step deletes what checking never reads (the
+downloaded cache archives, generated C sources, `.ilean` index files) but
+keeps the `.git` folders, which lake consults. The image is 13.8 GB (15.7 GB
+before that clean-up) and took 13.4 minutes to build on the development
+machine. With `RA_LEAN_RUNNER=docker`, `lean/sandbox.py` runs the same
+`ReplLeanRunner` through `docker run -i` with these settings:
+
+* `--network none`;
+* `--read-only`, with a 256 MB `/tmp` tmpfs;
+* `--cap-drop ALL` and `no-new-privileges`;
+* memory, CPU and process limits;
+* no mounts.
+
+There is no fallback to local Lean. Stopping the REPL removes the container.
+A missing Docker or image is reported with the build command, and the app
+then disables checking. `RA_LEAN_DOCKER_IMAGE` picks another image.
+
+Real-Lean results on the smaller image, 4 tests in 53 s:
+
+* The 15 files of the first live evaluation give the same verdicts and error
+  lines as the command-line runner.
+* All hand-written cases and reference exercises give the same outcomes.
+* In the container, `curl https://github.com` fails and writing outside
+  `/tmp` fails.
+* Closing the runner leaves no container behind.
+
+There are 404 unit tests, 5 of them for the sandbox with Docker faked.
+
+Limitations:
+
+* The image must be rebuilt after any change in `lean/`.
+* The container shares the host kernel.
+* The default `auto` mode still runs Lean on the host behind the deny-list
+  only.
+* The evaluation harness was not rerun end to end through the sandbox (that
+  needs the API). Its 15 checked files were replayed instead, which covers the
+  Lean side.
 
 ## First live run (2026-11-17, `claude-opus-5-5`, Lean/Mathlib v4.36.0)
 
