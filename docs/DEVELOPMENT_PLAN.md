@@ -238,7 +238,7 @@ Every advanced milestone keeps all B tests green; none may weaken verification.
 | Milestone | Scope | Key acceptance |
 | --- | --- | --- |
 | ✅ A1 | Quick Check / Learning mode toggle and plumbing | Quick mode shows the verdict and concise feedback with every Basic field still available (collapsed); Learning mode shows everything. |
-| ⏳ A2 | Lean code explanation, per tagged block, grounded in the actual code and verdict | Explanations reference only identifiers present in the code (checked). |
+| 🟡 A2 | Lean code explanation, per tagged block, grounded in the actual code and verdict | Explanations reference only identifiers present in the code (checked). |
 | ✅ A3 | Proof mapping table | Added/omitted flags computed from tags, not LLM claims; "changed" judgments labelled as LLM-assessed. |
 | ⬜ A4 | Enhanced 7-part error explanation + corrected code | A correction is labelled "Verified by Lean" only after passing §3 rules; otherwise "Unverified suggestion". |
 | ✅ A5 | Contextual learning cards + practice questions | Cards selected by tactics detected in code; every card example and practice answer is compiled by Lean in tests. |
@@ -280,6 +280,19 @@ solution. Real Lean compiles all 17 examples and 13 solutions (standard
 axioms only) and checks a right and a wrong practice answer; 339 unit tests
 pass, including an `AppTest` run where a practice answer goes to the Lean
 runner.
+
+**A2 result (live check pending).** `explain/code.py` makes one structured
+LLM call per proof, on request ("Explain the Lean code" in Learning Mode, cached
+per check), with the tagged code, each block's student step, the statement and
+Lean's verdict as context. For each block it returns the Lean syntax, the
+mathematical meaning, the role in the proof and why it is needed. Checked in
+code: only blocks that exist are kept, in code order; any Lean name written in
+backticks must occur in that block, the statement or the RaChecker
+definitions, otherwise the block's text is withheld and replaced by an
+automatic summary from the concept cards (the app says which names caused it);
+the same applies to the overview; an LLM outage gives automatic summaries.
+351 unit tests pass; `tests/llm/test_code_explanation_live.py` is ready for a
+key.
 
 ## Technical risks
 

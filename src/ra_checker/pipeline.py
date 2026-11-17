@@ -18,6 +18,7 @@ import logging
 from dataclasses import dataclass, replace
 
 from ra_checker.analysis.explain import analyze_failure
+from ra_checker.explain.code import CodeExplanation, explain_code
 from ra_checker.lean.runner import LeanRunner
 from ra_checker.llm.client import LLMClient, LLMError
 from ra_checker.llm.prompts import EXPLAIN_ERROR_VERSION
@@ -159,6 +160,12 @@ class Checker:
         )
         logger.info("check %s finished: %s", report.id, report.status)
         return VerifiedCheck(report, pending.statement_attempts, outcome.attempts)
+
+    # ---------------------------------------------------- learning (on demand)
+
+    def explain_code(self, report: CheckReport) -> CodeExplanation | None:
+        """Advanced Feature A; called only when the student asks for it."""
+        return explain_code(report, self.llm)
 
 
 def _report(

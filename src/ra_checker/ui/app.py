@@ -108,6 +108,7 @@ def main() -> None:
             *result,
             learning=mode is CheckMode.LEARNING,
             practice_runner=checker.lean if checker is not None else None,
+            checker=checker,
         )
 
 

@@ -5,12 +5,13 @@ from __future__ import annotations
 
 import streamlit as st
 
+from ra_checker.explain.code import CodeExplanation
 from ra_checker.lean.runner import LeanRunner
 from ra_checker.learning.cards import ALWAYS_SHOWN, ConceptCard
 from ra_checker.learning.detect import concepts_in, occurrences
 from ra_checker.learning.practice import PracticeResult, check_practice
 from ra_checker.models import CheckReport, VerificationStatus
-from ra_checker.pipeline import PendingCheck
+from ra_checker.pipeline import Checker, PendingCheck
 from ra_checker.report.mapping import build_mapping
 from ra_checker.report.presentation import (
     STEP_STATUS_LABELS,
@@ -73,6 +74,7 @@ def report_view(
     *,
     learning: bool = False,
     practice_runner: LeanRunner | None = None,
+    checker: Checker | None = None,
 ) -> None:
     """Quick Check: verdict and concise feedback, with every detail one click
     away in collapsed sections. Learning Mode: everything expanded, plus the
@@ -93,6 +95,7 @@ def report_view(
         _verification_result(report)
         _error_cards(report)
         _mapping_view(report)
+        _code_explanation(report, checker)
         _learning_section(report, practice_runner)
     else:
         _verification_result(report, concise=True)
@@ -177,6 +180,49 @@ def _mapping_view(report: CheckReport) -> None:
                     st.caption("No Lean code corresponds to this step.")
     if report.translation and report.translation.translator_notes:
         st.caption(f"Translator's notes: {report.translation.translator_notes}")
+
+
+def _code_explanation(report: CheckReport, checker: Checker | None) -> None:
+    if report.translation is None:
+        return
+    st.subheader("What the Lean code does")
+    key = f"code_explanation_{report.id}"
+    if key not in st.session_state:
+        st.caption("A block-by-block explanation of the Lean proof, tied to your own steps.")
+        if st.button("Explain the Lean code", key="explain_code", disabled=checker is None):
+            with st.spinner("Explaining the Lean code…"):
+                st.session_state[key] = checker.explain_code(report)
+            st.rerun()
+        return
+    explanation: CodeExplanation | None = st.session_state[key]
+    if explanation is None:
+        st.caption("There is no Lean code to explain for this check.")
+        return
+    st.markdown(explanation.overview)
+    for block in explanation.blocks:
+        with st.container(border=True):
+            origin = "your step" if block.step_id.startswith("S") else "added by the translator"
+            st.markdown(f"**{block.step_id}** · {origin}")
+            if block.student_text:
+                st.markdown(_quote(block.student_text))
+            st.code(block.lean_code, language="lean")
+            for label, text in (
+                ("Lean syntax", block.lean_syntax),
+                ("Mathematical meaning", block.math_meaning),
+                ("Role in the proof", block.role),
+                ("Why it is needed", block.why_needed),
+            ):
+                if text:
+                    st.markdown(f"**{label}:** {text}")
+            if block.source == "automatic":
+                reason = (
+                    " (the AI explanation was withheld because it mentioned "
+                    + ", ".join(f"`{m}`" for m in block.withheld_mentions)
+                    + ", which the code does not use)"
+                    if block.withheld_mentions
+                    else ""
+                )
+                st.caption(f"Automatic summary{reason}.")
 
 
 def _learning_section(report: CheckReport, runner: LeanRunner | None) -> None:

@@ -97,6 +97,29 @@ def test_learning_mode_shows_contextual_cards_and_lean_checked_practice():
     assert len(lean.sources) == 3  # the practice answer really went to the Lean runner
 
 
+def test_code_explanation_on_request():
+    from ra_checker.explain.code import EXPLAIN_CODE_TASK, CodeExplanationOutput
+
+    checker, llm, _ = make_checker()
+    llm.responses[EXPLAIN_CODE_TASK] = CodeExplanationOutput(
+        overview="Overview of the formal proof.",
+        blocks=[{"step_id": "S1", "lean_syntax": "`intro ε hε` fixes ε.", "math_meaning": "Let ε > 0.",
+                 "role": "Opens the argument.", "why_needed": "ε is universally quantified."}],
+    )
+    at = start(checker)
+    at.radio(key="mode").set_value("Learning Mode")
+    at = fill(at).button(key="confirm").click().run()
+    assert "What the Lean code does" in texts(at.subheader)
+    calls_before = len(llm.requests)
+    at = at.button(key="explain_code").click().run()
+    assert not at.exception
+    page = texts(at.markdown)
+    assert "Overview of the formal proof." in page and "**Mathematical meaning:** Let ε > 0." in page
+    assert len(llm.requests) == calls_before + 1
+    at = at.run()  # re-rendering does not ask the LLM again
+    assert len(llm.requests) == calls_before + 1
+
+
 def test_switching_mode_after_a_check_does_not_recheck():
     checker, _, lean = make_checker()
     at = fill(start(checker)).button(key="confirm").click().run()

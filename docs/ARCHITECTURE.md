@@ -104,7 +104,7 @@ interface with a fake for tests.
 | `report/presentation.py` | Deterministic student-facing wording: headlines, category/origin labels, "cannot confidently identify". | result presentation | B7 |
 | `pipeline.py` | `Checker`: `formalize` (phase 1) → `PendingCheck` → student confirms → `verify` (phase 2) → `CheckReport`. | orchestration | B7 |
 | `ui/app.py`, `ui/components.py`, `ui/services.py` | Streamlit flow, rendering only, and construction of the real checker (or a list of what is missing). | user interface | B7 |
-| `explain/code_explainer.py` | Per-block code explanation grounded in the actual code and verdict. | code explanation | A2 |
+| `explain/code.py` | Per-block code explanation from the actual code and verdict; names not in the code cause the block's text to be withheld. | code explanation | A2 |
 | `report/mapping.py` | Original-step ↔ Lean-block table with added/omitted/changed flags, built from the code's tags. | proof mapping | A3 |
 | `analysis/correction.py` | Proposes corrected code, **re-runs it through Lean**, labels it verified only if §3 passes. | enhanced errors | A4 |
 | `learning/cards.py`, `learning/detect.py` | Hand-written, Lean-checked concept cards (intro, rw, …) selected by the tactics found in the checked code, with where each occurs. | learning content | A5 |
