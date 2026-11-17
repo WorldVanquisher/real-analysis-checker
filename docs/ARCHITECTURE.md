@@ -87,9 +87,9 @@ interface with a fake for tests.
 | `config.py` | Settings from environment / `.env` (API key, model, Lean path, timeouts). | infrastructure | B1 |
 | `models.py` | Pydantic data models shared by all modules (see §5). | infrastructure | B1 |
 | `logging_setup.py` | Standard-library logging; never logs keys; logs IDs and statuses, not full student text, by default. | infrastructure | B1 |
-| `input/` | Length limits, Unicode normalization, empty-input checks. | input processing | B4 |
+| `input_validation.py` | Length limits and empty-input checks; NFC-normalized copy for the LLM (the stored submission stays verbatim). | input processing | B4 |
 | `llm/client.py` | `LLMClient` protocol, `AnthropicClient` (official `anthropic` SDK, structured outputs), `FakeLLMClient` for tests. | LLM communication | B4 |
-| `llm/prompts/` | Versioned prompt templates; the prompt version is recorded in each report. | LLM communication | B4 |
+| `llm/prompts.py` | Versioned prompt templates; the prompt version is recorded in each report. | LLM communication | B4 |
 | `parsing/problem_parser.py` | Hypotheses, goal, numbered proof steps, ambiguities, topic/scope check. | problem parsing | B4 |
 | `translation/statement.py` | Lean statement + natural-language back-translation + list of any assumptions added. | Lean code generation | B5 |
 | `translation/proof.py` | Tactic block only, each block tagged `-- [Sk]`; step map; translator notes. | Lean code generation | B5 |
@@ -116,7 +116,9 @@ collections and `extra="forbid"`; student text is stored verbatim.
 
 * `Submission` — `problem_text`, `proof_text`, `mode` (`quick` / `learning`).
 * `ProblemAnalysis` — `hypotheses`, `goal`, `proof_steps` (`ProofStep`: `id`
-  `S1…`, `text`), `ambiguities`, `in_scope`, `topic`; `needs_clarification`.
+  `S1…`, `text`, `verbatim` — false if the parser reworded the student),
+  `ambiguities`, `in_scope`, `out_of_scope_reason`, `topic`;
+  `needs_clarification`.
 * `FormalStatement` — `lean_statement`, `back_translation`,
   `assumptions_added`, `confirmed_by_student`.
 * `ProofTranslation` — `tactic_block`, `step_map` (`StepMapping`: `step_id`,
@@ -277,13 +279,26 @@ development machine).
 
 ## 9. LLM layer
 
-* Provider: Anthropic Claude via the official `anthropic` Python SDK. Model is
-  configurable (`RA_CHECKER_MODEL`), default `claude-opus-5-5`.
-* Structured outputs with Pydantic schemas for every call; adaptive thinking;
-  effort set per task (higher for translation, lower for explanations).
-* Refusals (`stop_reason == "refusal"`) and invalid outputs become
-  `TRANSLATION_FAILED`; network/API errors become `RUNTIME_ERROR`. The SDK's
-  built-in retries handle transient failures.
+* Provider: Anthropic Claude via the official `anthropic` Python SDK (1.x).
+  Model is configurable (`RA_CHECKER_MODEL`), default `claude-opus-5-5`.
+* Every call is `client.beta.messages.parse(..., output_format=<Pydantic
+  model>, output_config={"effort": …})`; the SDK validates the answer
+  against the schema. Thinking is left at the model's default (adaptive);
+  effort is set per task (`medium` for parsing, higher for translation).
+* For models that support it, Claude's server-side refusal fallback is on
+  (`betas=["server-side-fallback-2026-07-01"]`, `fallbacks="default"`): if the
+  model declines, the API re-runs the request on a fallback model. The model
+  that actually answered (`response.model`) is recorded in the report.
+* Refusals (`stop_reason == "refusal"`) raise `LLMRefusalError`, truncated or
+  off-schema answers `LLMOutputError` (both → `TRANSLATION_FAILED`); every SDK
+  error becomes `LLMUnavailableError` (→ `RUNTIME_ERROR`) with a generic
+  message — the SDK error is not chained, so neither the key nor response
+  bodies leak. The SDK's built-in retries (2) handle transient failures; the
+  timeout is `RA_LLM_TIMEOUT_S`.
+* Student text is wrapped in `<problem>` / `<student_proof>` tags, any closing
+  tag inside it is neutralized, and the system prompt tells the model to treat
+  it as data. Logs record task, model, tokens, duration and request id — never
+  the text.
 * The API key comes only from `ANTHROPIC_API_KEY` (or a git-ignored `.env`).
 * A **formalization repair loop** (B5, bounded to 2 attempts) may retry only
   `syntax` / `unknown_identifier` / `type_mismatch` failures, may not alter the

@@ -5,10 +5,12 @@ A student types a problem and their proof; the app formalizes both in
 **Lean 4 + Mathlib**, runs the real Lean checker, and explains where and why
 verification failed — in language a beginner can follow.
 
-> **Status: Milestone B3 done — real Lean verification works**, with
-> student-friendly ε–N definitions (each proven equivalent to Mathlib) and 8
-> Lean-verified reference exercises. There is no LLM translation or user
-> interface yet. Next up is B4 (LLM client and problem parsing); see
+> **Status: Milestone B4 built — real Lean verification works**, with
+> student-friendly ε–N definitions (each proven equivalent to Mathlib), 8
+> Lean-verified reference exercises, and the first LLM stage (reading the
+> problem and splitting the proof into steps), tested with a stand-in LLM. The
+> live LLM check is waiting for an API key. There is no Lean translation or
+> user interface yet. Next up is B5 (Lean translation); see
 > [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## How it will work
@@ -124,10 +126,25 @@ win over `.env`. Empty values count as unset.
 | `RA_CHECKER_MODEL` | `claude-opus-5-5` | Claude model used for parsing, translation and explanations. |
 | `RA_LEAN_PROJECT_DIR` | `lean` | Lean project folder; relative paths are resolved from the project root. |
 | `RA_LEAN_TIMEOUT_S` | `120` | Wall-clock limit for one Lean run, in seconds (max 3600). |
+| `RA_LLM_TIMEOUT_S` | `300` | Time limit for one LLM request, in seconds (max 1800). |
 | `RA_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. |
 
 Logs never contain the API key: it is redacted, as is anything shaped like an
-Anthropic key, including inside error tracebacks.
+Anthropic key, including inside error tracebacks. They also never contain the
+student's text — only its length and a hash.
+
+The LLM is Claude, via the official `anthropic` SDK. For models that support
+it, Claude's server-side refusal fallback is switched on: if the chosen model
+declines a request, the API answers with a fallback model instead, and the
+report records which model actually answered.
+
+## Tests
+
+```bash
+pytest            # unit tests: no network, no API key, no Lean (a few seconds)
+pytest -m lean    # real Lean + Mathlib (about 9 minutes, see below)
+pytest -m llm     # live Claude API calls: needs ANTHROPIC_API_KEY and costs money
+```
 
 ## Scope
 

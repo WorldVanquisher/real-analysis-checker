@@ -7,10 +7,12 @@ from pydantic import ValidationError
 
 from ra_checker.config import (
     DEFAULT_LEAN_TIMEOUT_S,
+    DEFAULT_LLM_TIMEOUT_S,
     DEFAULT_MODEL,
     ENV_API_KEY,
     ENV_LEAN_PROJECT_DIR,
     ENV_LEAN_TIMEOUT_S,
+    ENV_LLM_TIMEOUT_S,
     ENV_LOG_LEVEL,
     ENV_MODEL,
     PROJECT_ROOT,
@@ -103,6 +105,13 @@ def test_relative_lean_dir_resolves_against_project_root(tmp_path):
 def test_invalid_timeout_is_rejected_with_variable_name(bad):
     with pytest.raises(ConfigError, match=ENV_LEAN_TIMEOUT_S):
         load({ENV_LEAN_TIMEOUT_S: bad})
+
+
+def test_llm_timeout_default_override_and_limit():
+    assert load({}).llm_timeout_s == DEFAULT_LLM_TIMEOUT_S
+    assert load({ENV_LLM_TIMEOUT_S: "90"}).llm_timeout_s == 90
+    with pytest.raises(ConfigError, match=ENV_LLM_TIMEOUT_S):
+        load({ENV_LLM_TIMEOUT_S: "1801"})
 
 
 def test_invalid_log_level_is_rejected():

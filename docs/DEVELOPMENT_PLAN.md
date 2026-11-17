@@ -4,7 +4,8 @@ One milestone at a time. Each milestone ends with: what was implemented, which
 tests ran and their real output, known errors and limitations. A milestone is
 not "done" until its acceptance criteria are met by tests that actually ran.
 
-Status legend: ✅ done · ⏳ next · ⬜ planned
+Status legend: ✅ done · 🟡 built, a live check is still pending · ⏳ next ·
+⬜ planned
 
 ## Basic version (MVP)
 
@@ -97,17 +98,35 @@ Status legend: ✅ done · ⏳ next · ⬜ planned
   lemmas, whose names change between Mathlib versions — a useful hint for the
   B5 prompts. Only sequences are covered so far.
 
-### ⏳ B4 — LLM client + problem parsing
+### 🟡 B4 — LLM client + problem parsing
 
 * Adds dependency: `anthropic`.
-* Files: `src/ra_checker/llm/{client,prompts}`, `src/ra_checker/input/`,
-  `src/ra_checker/parsing/problem_parser.py`, `tests/unit/test_parser.py`
-  (fake LLM), `tests/llm/test_parser_live.py` (opt-in).
+* Files: `src/ra_checker/llm/{client,prompts}.py`,
+  `src/ra_checker/input_validation.py`, `src/ra_checker/parsing/problem_parser.py`,
+  `tests/unit/test_{llm_client,problem_parser,input_validation}.py` (fake LLM),
+  `tests/llm/{conftest,test_parser_live}.py` (opt-in).
 * Accept: structured output validated by Pydantic; an ambiguous problem yields
   `NEEDS_CLARIFICATION` with questions; an out-of-scope problem is flagged;
   API failure → `RUNTIME_ERROR`; refusal → `TRANSLATION_FAILED`.
+* Result: 211 unit tests pass. `AnthropicClient` uses the SDK's
+  `beta.messages.parse` with a Pydantic `output_format`, an explicit effort
+  (parsing runs at `medium`) and Claude's server-side refusal fallback
+  (`fallbacks="default"`) for models that support it; the model that actually
+  served the answer is recorded. Every SDK error maps to `LLMUnavailableError`
+  (→ `RUNTIME_ERROR`) without chaining the SDK error or leaking the key; a
+  refusal raises `LLMRefusalError` and a truncated or off-schema answer
+  `LLMOutputError` (both → `TRANSLATION_FAILED`; the mapping to report statuses
+  is wired in B7). The parser numbers steps itself, marks any step that is not
+  a verbatim excerpt of the student's proof (`ProofStep.verbatim`), turns a
+  missing goal or an empty step list into clarification questions, keeps
+  student text out of the logs, and stops student text from closing the
+  prompt's delimiting tags. New setting `RA_LLM_TIMEOUT_S` (default 300 s).
+* Pending: the three live tests (`pytest -m llm`) have not run, because no
+  Anthropic API key is configured on the development machine. They check a
+  reference problem (in scope, verbatim steps, no questions), an
+  out-of-scope problem and an ambiguous one.
 
-### ⬜ B5 — Lean translation (statement, then proof)
+### ⏳ B5 — Lean translation (statement, then proof)
 
 * Files: `src/ra_checker/translation/{statement,proof}.py`, prompts, tests.
 * Accept: statement is elaborated with `sorry` before it is shown; proof

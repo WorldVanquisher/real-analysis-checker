@@ -26,11 +26,14 @@ ENV_API_KEY = "ANTHROPIC_API_KEY"
 ENV_MODEL = "RA_CHECKER_MODEL"
 ENV_LEAN_PROJECT_DIR = "RA_LEAN_PROJECT_DIR"
 ENV_LEAN_TIMEOUT_S = "RA_LEAN_TIMEOUT_S"
+ENV_LLM_TIMEOUT_S = "RA_LLM_TIMEOUT_S"
 ENV_LOG_LEVEL = "RA_LOG_LEVEL"
 
 DEFAULT_MODEL = "claude-opus-5-5"
 DEFAULT_LEAN_TIMEOUT_S = 120.0
 MAX_LEAN_TIMEOUT_S = 3600.0
+DEFAULT_LLM_TIMEOUT_S = 300.0
+MAX_LLM_TIMEOUT_S = 1800.0
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LOG_LEVELS: tuple[str, ...] = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
@@ -51,6 +54,7 @@ class Settings(BaseModel):
     lean_timeout_s: float = Field(
         default=DEFAULT_LEAN_TIMEOUT_S, gt=0, le=MAX_LEAN_TIMEOUT_S
     )
+    llm_timeout_s: float = Field(default=DEFAULT_LLM_TIMEOUT_S, gt=0, le=MAX_LLM_TIMEOUT_S)
     log_level: LogLevel = "INFO"
 
     @property
@@ -98,7 +102,12 @@ def load_settings(
         lean_project_dir=_resolve_project_path(lean_dir)
         if lean_dir
         else PROJECT_ROOT / "lean",
-        lean_timeout_s=_parse_timeout(get(ENV_LEAN_TIMEOUT_S)),
+        lean_timeout_s=_parse_timeout(
+            get(ENV_LEAN_TIMEOUT_S), ENV_LEAN_TIMEOUT_S, DEFAULT_LEAN_TIMEOUT_S, MAX_LEAN_TIMEOUT_S
+        ),
+        llm_timeout_s=_parse_timeout(
+            get(ENV_LLM_TIMEOUT_S), ENV_LLM_TIMEOUT_S, DEFAULT_LLM_TIMEOUT_S, MAX_LLM_TIMEOUT_S
+        ),
         log_level=_parse_log_level(get(ENV_LOG_LEVEL)),
     )
 
@@ -109,19 +118,16 @@ def _resolve_project_path(raw: str) -> Path:
     return path if path.is_absolute() else PROJECT_ROOT / path
 
 
-def _parse_timeout(raw: str | None) -> float:
+def _parse_timeout(raw: str | None, name: str, default: float, maximum: float) -> float:
     if raw is None:
-        return DEFAULT_LEAN_TIMEOUT_S
+        return default
     try:
         value = float(raw)
     except ValueError:
+        raise ConfigError(f"{name} must be a number of seconds, got {raw!r}.") from None
+    if not math.isfinite(value) or not 0 < value <= maximum:
         raise ConfigError(
-            f"{ENV_LEAN_TIMEOUT_S} must be a number of seconds, got {raw!r}."
-        ) from None
-    if not math.isfinite(value) or not 0 < value <= MAX_LEAN_TIMEOUT_S:
-        raise ConfigError(
-            f"{ENV_LEAN_TIMEOUT_S} must be greater than 0 and at most "
-            f"{MAX_LEAN_TIMEOUT_S:g} seconds, got {raw!r}."
+            f"{name} must be greater than 0 and at most {maximum:g} seconds, got {raw!r}."
         )
     return value
 

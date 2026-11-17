@@ -133,6 +133,7 @@ class Submission(_Model):
 class ProofStep(_Model):
     id: StudentStepId
     text: NonBlankStr
+    verbatim: bool = True  # False if the parser reworded the student's text
 
 
 class ProblemAnalysis(_Model):
@@ -143,6 +144,7 @@ class ProblemAnalysis(_Model):
     proof_steps: tuple[ProofStep, ...] = ()
     ambiguities: tuple[NonBlankStr, ...] = ()
     in_scope: bool
+    out_of_scope_reason: str = ""
     topic: str | None = None
 
     @property
