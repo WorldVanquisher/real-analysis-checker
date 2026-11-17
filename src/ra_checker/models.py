@@ -281,6 +281,8 @@ class ErrorAnalysis(_Model):
     step_id: StepId | None = None
     line: int | None = Field(default=None, ge=1)  # line within the tactic block
     correction_direction: str | None = None
+    math_interpretation: str | None = None  # what the failure means mathematically
+    lean_concept: str | None = None  # the Lean idea involved (chosen by rules, not the LLM)
 
     @property
     def confident(self) -> bool:

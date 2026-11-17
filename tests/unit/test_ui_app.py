@@ -120,6 +120,33 @@ def test_code_explanation_on_request():
     assert len(llm.requests) == calls_before + 1
 
 
+def test_learning_mode_offers_hints_before_a_lean_checked_correction():
+    from ra_checker.analysis.correction import CORRECTION_TASK, CorrectionOutput
+
+    checker, llm, lean = make_checker(STATEMENT_OK, UNSOLVED, OK)  # statement, proof, correction
+    llm.responses[CORRECTION_TASK] = CorrectionOutput(
+        corrected_tactics="refine ⟨N, fun n hn => ?_⟩\nsimpa using hN n hn", explanation="Finish with simpa."
+    )
+    at = start(checker)
+    at.radio(key="mode").set_value("Learning Mode")
+    at = fill(at).button(key="confirm").click().run()
+    page = texts(at.markdown)
+    assert "Relevant Lean concept" in page and "Hint:" not in page
+    assert "Suggested direction (not checked by Lean)" not in page  # hints come one at a time
+
+    button = next(b for b in at.button if b.label == "Show a hint")
+    at = button.click().run()
+    assert "**Hint:**" in texts(at.markdown) and "What it means mathematically" not in texts(at.markdown)
+    assert len(lean.sources) == 2  # no correction yet
+
+    at = next(b for b in at.button if b.label == "Show a bigger hint").click().run()
+    assert "What it means mathematically" in texts(at.markdown)
+    at = next(b for b in at.button if b.label.startswith("Show a corrected proof")).click().run()
+    assert not at.exception
+    assert "Verified by Lean" in texts(at.success)
+    assert len(lean.sources) == 3  # the correction itself went through Lean
+
+
 def test_switching_mode_after_a_check_does_not_recheck():
     checker, _, lean = make_checker()
     at = fill(start(checker)).button(key="confirm").click().run()

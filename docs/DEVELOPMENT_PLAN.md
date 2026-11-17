@@ -240,9 +240,9 @@ Every advanced milestone keeps all B tests green; none may weaken verification.
 | ✅ A1 | Quick Check / Learning mode toggle and plumbing | Quick mode shows the verdict and concise feedback with every Basic field still available (collapsed); Learning mode shows everything. |
 | 🟡 A2 | Lean code explanation, per tagged block, grounded in the actual code and verdict | Explanations reference only identifiers present in the code (checked). |
 | ✅ A3 | Proof mapping table | Added/omitted flags computed from tags, not LLM claims; "changed" judgments labelled as LLM-assessed. |
-| ⬜ A4 | Enhanced 7-part error explanation + corrected code | A correction is labelled "Verified by Lean" only after passing §3 rules; otherwise "Unverified suggestion". |
+| 🟡 A4 | Enhanced 7-part error explanation + corrected code | A correction is labelled "Verified by Lean" only after passing §3 rules; otherwise "Unverified suggestion". |
 | ✅ A5 | Contextual learning cards + practice questions | Cards selected by tactics detected in code; every card example and practice answer is compiled by Lean in tests. |
-| ⬜ A6 | Hints-before-correction ladder in learning mode | Correction hidden until hints are requested. |
+| 🟡 A6 | Hints-before-correction ladder in learning mode | Correction hidden until hints are requested. |
 | ⬜ A7 | Evaluation set and harness | Report covers the six spec metrics; human rubric documented. |
 | ⬜ A8 | Optional hardening: Lean in a no-network Docker container; persistent Lean REPL for speed | Same results as local runner on the eval set. |
 
@@ -293,6 +293,24 @@ automatic summary from the concept cards (the app says which names caused it);
 the same applies to the overview; an LLM outage gives automatic summaries.
 351 unit tests pass; `tests/llm/test_code_explanation_live.py` is ready for a
 key.
+
+**A4 + A6 result (live check pending).** Error explanations now carry all
+seven parts of the spec: location, the raw Lean message, a simplified
+explanation, a mathematical interpretation (new LLM field; prompt
+`explain_error.v2`), the relevant Lean concept (chosen by rules from the
+error kind or the tactic named in the message, linked to its concept card —
+never by the LLM), a suggested direction, and a corrected code example.
+`analysis/correction.py` asks the LLM for replacement tactics for the failing
+step only, splices them under that step's tag (tag lines in the answer are
+dropped), screens the result, assembles it around the same locked statement
+and runs Lean with the same verdict rules; it is labelled "Verified by Lean"
+only for `VERIFIED`, otherwise "Unverified suggestion", and suggestions that
+are empty, unsafe or contain `sorry` never reach Lean. The student's own
+report never changes. In Learning Mode each error card offers, one click at a
+time, a hint, then the mathematical interpretation, then the corrected proof
+(only then are the LLM and Lean run); Quick Check keeps the concise card.
+365 unit tests pass; with real Lean, a `positivity` fix of a type-mismatch
+proof is verified and a non-fix is labelled unverified.
 
 ## Technical risks
 

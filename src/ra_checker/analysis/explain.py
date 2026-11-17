@@ -16,6 +16,7 @@ For each of the first :data:`MAX_ANALYZED_ERRORS` Lean errors:
 from __future__ import annotations
 
 import logging
+import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -25,6 +26,7 @@ from ra_checker.analysis.locate import ErrorLocation, locate_error
 from ra_checker.input_validation import normalize_for_llm
 from ra_checker.lean.assemble import AssembledFile
 from ra_checker.lean.diagnostics import LeanOutput
+from ra_checker.learning.cards import CARDS
 from ra_checker.llm.client import LLMClient, LLMError
 from ra_checker.llm.prompts import EXPLAIN_ERROR_SYSTEM, explain_error_user_message
 from ra_checker.models import (
@@ -103,7 +105,40 @@ class ExplanationOutput(BaseModel):
     origin: Literal["student_reasoning", "formalization", "undetermined"]
     confidence: Literal["high", "medium", "low"]
     explanation: str
+    math_interpretation: str
     correction_direction: str
+
+
+_KIND_CONCEPTS = {
+    LeanErrorKind.SYNTAX: "Lean syntax: Lean could not read this code as Lean at all.",
+    LeanErrorKind.UNKNOWN_IDENTIFIER: (
+        "Names: every theorem or definition used in Lean must exist under exactly that name."
+    ),
+    LeanErrorKind.UNSOLVED_GOALS: (
+        "Goals: after the last tactic Lean still had something left to prove — the "
+        "goal shown after ⊢ in the message."
+    ),
+    LeanErrorKind.TYPE_MISMATCH: (
+        "Types: every Lean statement has an exact form, and a fact of one form cannot be "
+        "used where a statement of another form is expected."
+    ),
+}
+_TACTIC_IN_MESSAGE = re.compile(r"\b(n?linarith|positivity|norm_num|simp|rewrite|rw|calc|exact|apply)\b")
+_TRANSLATION_ONLY = (
+    "This is a problem with the Lean translation; it says nothing about your mathematics."
+)
+
+
+def lean_concept_for(kind: LeanErrorKind, message: str) -> str | None:
+    """The Lean idea involved in an error, chosen by rules (never by the LLM)."""
+    if kind in _KIND_CONCEPTS:
+        return _KIND_CONCEPTS[kind]
+    if kind is LeanErrorKind.TACTIC_FAILED and (match := _TACTIC_IN_MESSAGE.search(message)):
+        word = "rw" if match.group(1) == "rewrite" else match.group(1)
+        for card in CARDS:
+            if card.pattern.search(word):
+                return f"{card.title}: {card.lean_meaning}"
+    return None
 
 
 def analyze_failure(
@@ -170,6 +205,8 @@ def analyze_failure(
                 step_id=location.step_id,
                 line=location.block_line,
                 correction_direction=answer.correction_direction.strip() or None,
+                math_interpretation=answer.math_interpretation.strip() or None,
+                lean_concept=lean_concept_for(kind, diagnostic.message),
             )
         )
     return tuple(results)
@@ -221,6 +258,8 @@ def _lean_side(kind: LeanErrorKind, diagnostic: Diagnostic, location: ErrorLocat
         step_id=location.step_id,
         line=location.block_line,
         correction_direction=_LEAN_SIDE_HINT,
+        math_interpretation=_TRANSLATION_ONLY,
+        lean_concept=lean_concept_for(kind, diagnostic.message),
     )
 
 
@@ -239,4 +278,5 @@ def _fallback(kind: LeanErrorKind, diagnostic: Diagnostic, location: ErrorLocati
         step_id=location.step_id,
         line=location.block_line,
         correction_direction=None,
+        lean_concept=lean_concept_for(kind, diagnostic.message),
     )

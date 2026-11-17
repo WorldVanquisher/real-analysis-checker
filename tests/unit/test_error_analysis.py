@@ -94,7 +94,7 @@ def test_untagged_block():
 def answer(category="mathematical_reasoning", origin="student_reasoning", confidence="high"):
     return ExplanationOutput(
         category=category, origin=origin, confidence=confidence,
-        explanation="Your bound gives 2ε, not ε.", correction_direction="Use ε/2 for each sequence.",
+        explanation="Your bound gives 2ε, not ε.", math_interpretation="The two estimates add up to 2ε.", correction_direction="Use ε/2 for each sequence.",
     )
 
 

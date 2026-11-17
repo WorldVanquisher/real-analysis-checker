@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from ra_checker.analysis.correction import Correction, CorrectionUnavailable
 from ra_checker.explain.code import CodeExplanation
 from ra_checker.lean.runner import LeanRunner
 from ra_checker.learning.cards import ALWAYS_SHOWN, ConceptCard
@@ -93,7 +94,7 @@ def report_view(
         _problem_and_proof(report)
         _statement_and_code(report)
         _verification_result(report)
-        _error_cards(report)
+        _error_cards(report, learning=True, checker=checker)
         _mapping_view(report)
         _code_explanation(report, checker)
         _learning_section(report, practice_runner)
@@ -142,13 +143,66 @@ def _verification_result(report: CheckReport, concise: bool = False) -> None:
         st.caption(run.lean_version)
 
 
-def _error_cards(report: CheckReport) -> None:
+def _error_cards(report: CheckReport, learning: bool = False, checker: Checker | None = None) -> None:
     if not report.error_analyses:
         return
     st.subheader("Where and why it failed")
     steps = {s.id: s.text for s in report.analysis.proof_steps} if report.analysis else {}
-    for error in report.error_analyses:
-        _error_card(error, steps)
+    for index, error in enumerate(report.error_analyses):
+        _error_card(error, steps, learning=learning)
+        if learning:
+            _hint_ladder(report, index, error, checker)
+
+
+def _hint_ladder(report: CheckReport, index: int, error, checker: Checker | None) -> None:
+    """Advanced E: hints first, the corrected proof last, one click at a time."""
+    level_key = f"hint_level_{report.id}_{index}"
+    level = st.session_state.get(level_key, 0)
+
+    def advance() -> None:
+        st.session_state[level_key] = level + 1
+
+    if level >= 1:
+        st.markdown(f"**Hint:** {error.correction_direction or 'No hint is available for this error.'}")
+    if level >= 2:
+        meaning = error.math_interpretation or "No mathematical interpretation is available."
+        st.markdown(f"**What it means mathematically:** {meaning}")
+    if level >= 3:
+        _correction(report, index, checker)
+        return
+    labels = ("Show a hint", "Show a bigger hint", "Show a corrected proof (checked by Lean)")
+    st.button(labels[level], key=f"hint_button_{report.id}_{index}", on_click=advance,
+              disabled=level == 2 and checker is None)
+
+
+def _correction(report: CheckReport, index: int, checker: Checker | None) -> None:
+    key = f"correction_{report.id}_{index}"
+    if key not in st.session_state and checker is not None:
+        with st.spinner("Writing a corrected version and checking it with Lean (about half a minute)…"):
+            try:
+                st.session_state[key] = checker.suggest_correction(report, index)
+            except CorrectionUnavailable as exc:
+                st.session_state[key] = str(exc)
+    correction: Correction | str | None = st.session_state.get(key)
+    if correction is None:
+        return
+    if isinstance(correction, str):
+        st.info(correction)
+        return
+    if correction.verified:
+        st.success("**Verified by Lean** — with this change, Lean accepts the whole formal proof.")
+    else:
+        why = "; ".join(correction.reasons) or "Lean did not accept it"
+        st.warning(f"**Unverified suggestion** — Lean did not accept it ({why}). Treat it as an idea only.")
+    st.markdown(f"**What changes:** {correction.explanation}")
+    before, after = st.columns(2)
+    with before:
+        st.markdown(f"**Before** (step {correction.step_id or '—'})")
+        st.code(correction.original_code, language="lean")
+    with after:
+        st.markdown("**After**")
+        st.code(correction.corrected_code, language="lean")
+    st.caption("Your own result above is unchanged: this is a suggestion to learn from.")
 
 
 def _mapping_view(report: CheckReport) -> None:
@@ -293,7 +347,7 @@ _STATUS_TEXT = {
 }
 
 
-def _error_card(error, steps: dict[str, str]) -> None:
+def _error_card(error, steps: dict[str, str], learning: bool = False) -> None:
     classification, explanation = explanation_lines(error)
     with st.container(border=True):
         where = []
@@ -307,7 +361,10 @@ def _error_card(error, steps: dict[str, str]) -> None:
             st.markdown(_quote(steps[error.step_id]))
         st.markdown(f"**{classification}**")
         st.markdown(explanation)
-        if error.correction_direction:
+        if learning:
+            if error.lean_concept:
+                st.markdown(f"**Relevant Lean concept:** {error.lean_concept}")
+        elif error.correction_direction:
             st.markdown(f"**Suggested direction (not checked by Lean):** {error.correction_direction}")
         with st.expander("Original Lean error message"):
             st.code(error.raw_message, language="text")

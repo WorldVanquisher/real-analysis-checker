@@ -49,6 +49,7 @@ def checker_for(tactic_block: str, lean_runner) -> Checker:
             EXPLAIN_TASK: ExplanationOutput(
                 category="algebraic_computational", origin="student_reasoning", confidence="high",
                 explanation="With ε for each sequence the sum is only below 2ε.",
+                math_interpretation="ε + ε = 2ε, which is not below ε.",
                 correction_direction="Use ε/2 for each sequence.",
             ),
         }

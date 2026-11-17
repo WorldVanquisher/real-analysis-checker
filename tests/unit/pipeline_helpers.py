@@ -56,6 +56,7 @@ def proof_answer(block: str = TACTICS, statuses=("translated",) * 3) -> ProofOut
 EXPLANATION = ExplanationOutput(
     category="incomplete_proof", origin="student_reasoning", confidence="medium",
     explanation="The last step does not show the inequality.",
+    math_interpretation="The inequality |a_n − A| < ε is never connected to the goal.",
     correction_direction="Show why |a_n − A| < ε gives the claim.",
 )
 

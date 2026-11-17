@@ -13,6 +13,7 @@ from pipeline_helpers import (
 from translation_helpers import OK, SORRY, STATEMENT_OK, UNSOLVED
 
 from ra_checker.llm.client import LLMRefusalError, LLMUnavailableError
+from ra_checker.llm.prompts import EXPLAIN_ERROR_VERSION
 from ra_checker.models import CheckReport, Submission, VerificationStatus as S
 from ra_checker.pipeline import PendingCheck
 
@@ -78,7 +79,7 @@ def test_lean_failure_is_explained():
     report = checker.verify(pending.confirmed()).report
     assert report.status is S.VERIFICATION_FAILED
     assert report.error_analyses and report.error_analyses[0].step_id == "S3"
-    assert report.prompt_version.endswith("explain_error.v1")
+    assert report.prompt_version.endswith(EXPLAIN_ERROR_VERSION)
     assert report.diagnostics
 
 

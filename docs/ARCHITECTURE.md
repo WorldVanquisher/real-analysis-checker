@@ -286,6 +286,17 @@ development machine).
    always shown next to the explanation. At most three errors per check are
    analysed.
 
+**Seven-part explanation and corrections (A4, A6).** Each `ErrorAnalysis` also
+holds a mathematical interpretation (LLM) and the relevant Lean concept (rules:
+error kind, or the tactic named in Lean's message mapped to its concept card).
+`analysis/correction.py` produces a corrected version of the failing step on
+request: the LLM writes replacement tactics for that step only, Python splices
+them under the step's tag, screens and assembles the proof around the same
+locked statement, and Lean decides with the same verdict rules — "Verified by
+Lean" only for `VERIFIED`, otherwise "Unverified suggestion". In Learning Mode
+the app reveals a hint, then the mathematical interpretation, then the
+correction, one click at a time; the student's own report is never changed.
+
 Errors that Lean reports on the theorem line (notably "unsolved goals" at
 `by`, when the proof ends with something left to prove) are attributed to the
 last step with `at_end_of_proof`, and the open goal is shown to the explainer.

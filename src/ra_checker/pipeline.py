@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace
 
+from ra_checker.analysis.correction import Correction, suggest_correction
 from ra_checker.analysis.explain import analyze_failure
 from ra_checker.explain.code import CodeExplanation, explain_code
 from ra_checker.lean.runner import LeanRunner
@@ -166,6 +167,11 @@ class Checker:
     def explain_code(self, report: CheckReport) -> CodeExplanation | None:
         """Advanced Feature A; called only when the student asks for it."""
         return explain_code(report, self.llm)
+
+    def suggest_correction(self, report: CheckReport, error_index: int) -> Correction:
+        """Advanced Feature D; checked by Lean; never changes ``report``.
+        Raises CorrectionUnavailable with a student-facing message."""
+        return suggest_correction(report, error_index, self.llm, self.lean)
 
 
 def _report(

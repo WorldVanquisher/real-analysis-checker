@@ -28,7 +28,7 @@ CASES = tomllib.loads(
 SUM = next(c for c in CASES if c["id"] == "sum_of_limits")
 EXPLANATION = ExplanationOutput(
     category="algebraic_computational", origin="student_reasoning", confidence="high",
-    explanation="…", correction_direction="…",
+    explanation="…", math_interpretation="…", correction_direction="…",
 )
 
 
