@@ -23,6 +23,8 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Lean and live-LLM tests are opt-in: `pytest -m lean`, `pytest -m llm`.
+addopts = "-m 'not lean and not llm'"
 markers = [
     "lean: needs a local Lean 4 + Mathlib installation",
     "llm: calls the real LLM API (costs money; opt-in only)",

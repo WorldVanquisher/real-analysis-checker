@@ -1,0 +1,7 @@
+/tmp/ra_checker/Check.lean:7:2: error: Type mismatch
+  hx
+has type
+  0 < x
+but is expected to have type
+  0 < x ^ 2
+'student_claim' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]

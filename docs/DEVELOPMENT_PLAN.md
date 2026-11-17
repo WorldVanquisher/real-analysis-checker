@@ -33,21 +33,46 @@ Status legend: ✅ done · ⏳ next · ⬜ planned
   match, `sorry` and axiom rules arrive with `report/verdict.py` in B2. Logging
   is console-only; a log file can be added if needed.
 
-### ⏳ B2 — Lean environment, runner, diagnostics, safety, verdict
+### ✅ B2 — Lean environment, runner, diagnostics, safety, verdict
 
 * Install: elan (Lean version manager), the pinned Lean toolchain, Mathlib cache
   (`lake exe cache get`, several GB).
-* Files: `lean/lean-toolchain`, `lean/lakefile.toml`, `lean/RaChecker.lean`,
-  `src/ra_checker/lean/{assemble,safety,runner,diagnostics}.py`,
-  `src/ra_checker/report/verdict.py`, `tests/unit/test_{assemble,safety,diagnostics,verdict}.py`,
-  `tests/lean/test_runner_real.py`, `tests/fixtures/lean_output/*.txt`.
+* Files: `lean/lean-toolchain`, `lean/lakefile.toml`, `lean/lake-manifest.json`,
+  `lean/RaChecker.lean`, `src/ra_checker/lean/{assemble,safety,runner,diagnostics}.py`,
+  `src/ra_checker/report/verdict.py`,
+  `tests/unit/test_{assemble,safety,runner,diagnostics,verdict}.py`,
+  `tests/lean/{conftest,lean_cases,test_lean_real}.py`,
+  `tests/fixtures/lean_output/*.txt`.
 * Accept: known-good snippet → `VERIFIED`; snippets with an error, an unsolved
   goal, a `sorry`, and `native_decide` → not verified with the right reason;
   deny-listed code never reaches Lean; a deliberately slow snippet hits the
   timeout and leaves no Lean process running; measured cold/warm run time is
   reported.
+* Result: elan 4.2.4; Lean and Mathlib pinned to `v4.36.0` (Mathlib commit
+  `fc4f59e`). First setup took 11.7 min (9 117 cache files). 144 unit tests
+  (`pytest -W error`) and 13 real-Lean tests (`pytest -m lean`) pass: two
+  verified proofs; unsolved goals, type mismatch, unknown identifier, syntax
+  error and `linarith` failure → `VERIFICATION_FAILED`; `sorry` →
+  `TRANSLATION_FAILED`; `native_decide` and an injected `axiom`, run with the
+  safety screen deliberately bypassed, → `VERIFICATION_FAILED` via the axiom
+  check; a 2 s timeout leaves no `lean.exe` behind.
+* Found by the real-Lean tests and fixed: Lean's default `autoImplicit` turned
+  an unknown name in a statement into a new variable, so a wrong statement
+  type-checked. The assembled header and the lakefile now set
+  `autoImplicit false`. Also: `#print axioms` prints a bare line (no
+  `file:line:col` header), and `sorryAx` appears after any error, so
+  placeholders are detected from the ``declaration uses `sorry` `` warning.
+* Timing on the dev machine (Windows, warm cache): one check takes about
+  23 s with `import Mathlib`, 15.5 s with `Mathlib.Tactic` +
+  `Mathlib.Analysis.SpecificLimits.Basic`, 12 s with only the latter — the cost
+  is almost entirely the import. Kept `import Mathlib` for now (a missing
+  import would show up as a false "unknown identifier"); revisit with the B3/B5
+  reference proofs, and A8's persistent Lean process removes the import cost.
+* Limitations: the safety screen is a deny-list, not a sandbox (A8 adds
+  Docker). Errors reported on the theorem line itself (e.g. unsolved goals at
+  `by`) need special handling in B6's locator.
 
-### ⬜ B3 — Student-friendly Lean definitions + reference cases
+### ⏳ B3 — Student-friendly Lean definitions + reference cases
 
 * Files: `lean/RaChecker/Defs.lean` (sequence convergence, boundedness,
   Cauchy, …), `lean/RaChecker/Bridge.lean` (equivalence proofs to Mathlib),
@@ -137,8 +162,7 @@ Every advanced milestone keeps all B tests green; none may weaken verification.
 
 ## Open decisions for the owner
 
-1. Approve installing elan + Lean + Mathlib (several GB under the user profile)
-   at B2.
+1. ~~Approve installing elan + Lean + Mathlib~~ — done at B2.
 2. Confirm Anthropic Claude as the LLM provider and provide an API key before
    B4 live tests.
 3. First topic set: sequences and convergence (proposed list in B3).

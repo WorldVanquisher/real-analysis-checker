@@ -172,8 +172,10 @@ everything else:
 
 ```lean
 import Mathlib
-import RaChecker.Defs
-open RaChecker
+import RaChecker.Defs          -- from B3
+open RaChecker                 -- from B3
+
+set_option autoImplicit false
 
 theorem student_claim <locked statement> := by
   -- [S1]
@@ -184,19 +186,33 @@ theorem student_claim <locked statement> := by
 #print axioms student_claim
 ```
 
+`autoImplicit false` is essential: with Lean's default, an unknown lower-case
+name in the statement silently becomes a new universally quantified variable,
+so a mistranslated statement would still type-check (found in B2).
+
 Before the proof is translated, the locked statement is elaborated once with
-`:= by sorry` to prove it type-checks.
+`:= by sorry` to prove it type-checks (`assemble_statement_check`,
+`decide_statement_check`).
 
-**Execution.** Each check writes the file to a fresh temporary directory and
-runs Lean through `lake env lean <file>` (with the Lean project as working
-directory), using an argument list, a wall-clock timeout, an output-size cap,
-and process-tree termination on timeout (Windows needs this explicitly). The
-exact output format of diagnostics and `#print axioms` is confirmed against the
-pinned Lean version at B2 and frozen in test fixtures.
+**Execution** (`lean/runner.py`). Each check writes the file to a fresh
+temporary directory and runs `lake env lean <file>` with the Lean project as
+working directory, using an argument list (no shell), closed stdin, an
+environment with secret-looking variables (`*KEY*`, `*TOKEN*`, …) removed, a
+wall-clock timeout, an output-size cap, and process-tree termination on
+timeout (`taskkill /T` on Windows, a process group elsewhere). `lake` is found
+on PATH or in `~/.elan/bin`.
 
-**Latency.** Importing all of Mathlib costs seconds and several GB of RAM per
-run. B2 measures it; if it is too slow, the header switches to narrower imports,
-and a persistent Lean REPL process is a later optimization.
+**Output format** (Lean 4.36, frozen in `tests/fixtures/lean_output/`): errors
+and warnings are `file:line:col: severity[(code)]: text` plus continuation
+lines; `#print axioms` prints a bare `'student_claim' depends on axioms: […]`
+line; a placeholder produces the warning ``declaration uses `sorry` ``.
+`sorryAx` also appears in the axiom list after any error, as Lean's error
+recovery, so it is not taken to mean "placeholder" (it still blocks
+`VERIFIED`, being non-standard).
+
+**Latency.** Measured in B2: about 23 s per check with `import Mathlib`,
+almost all of it the import (12–15 s with narrower imports). The full import is
+kept for now; a persistent Lean process (A8) removes the import cost.
 
 ## 7. Safety model
 
@@ -205,11 +221,16 @@ Lean can run arbitrary code at compile time (`#eval`, `run_cmd`, custom
 
 * The LLM never supplies imports, `open` commands, options, or top-level
   commands — only a tactic block (and, earlier, a statement).
-* Deny-list (token-level, comments and strings stripped first): `#eval`,
-  `#exit`, `run_cmd`, `run_tac`, `run_elab`, `run_meta`, `elab`, `macro`,
-  `syntax`, `notation`, `initialize`, `IO`, `unsafe`, `implemented_by`,
-  `extern`, `import`, `set_option`, `axiom`, `opaque`, `native_decide`,
-  `admit`, plus a maximum length.
+* Deny-list (`lean/safety.py`; token-level, comments skipped first): every
+  `#` command; command and declaration keywords (`import`, `set_option`,
+  `def`, `theorem`, `axiom`, `namespace`, `end`, …) — needed because a tactic
+  block can start a new top-level command at any indentation; metaprogramming
+  (`run_tac`, `run_cmd`, `elab`, `macro`, `syntax`, `notation`, …);
+  `unsafe`, `implemented_by`, `extern`, `native_decide`, `admit`; the `IO`,
+  `Lean` and `System` namespaces; attributes `@[…]`; `«guillemet»`
+  identifiers; string literals; control and bidirectional-override
+  characters; unterminated block comments; a maximum length. Statements
+  additionally may not contain `:=` or `sorry`.
 * `sorry` is allowed only as an explicit "could not formalize this step"
   placeholder; it always prevents `VERIFIED`.
 * `#print axioms` catches anything that slips past (e.g. `native_decide`

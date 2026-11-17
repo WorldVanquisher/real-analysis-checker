@@ -1,0 +1,2 @@
+/tmp/ra_checker/Check.lean:5:8: warning: declaration uses `sorry`
+'student_claim' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]

@@ -5,9 +5,10 @@ A student types a problem and their proof; the app formalizes both in
 **Lean 4 + Mathlib**, runs the real Lean checker, and explains where and why
 verification failed — in language a beginner can follow.
 
-> **Status: Milestone B1 done — settings, data models and logging.** No
-> checking features work yet. Next up is B2 (Lean environment and runner); see
-> [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
+> **Status: Milestone B2 done — real Lean verification works** (file
+> assembly, safety screen, runner, output parsing, verdict rules). There is no
+> LLM translation or user interface yet. Next up is B3 (student-friendly Lean
+> definitions); see [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## How it will work
 
@@ -59,9 +60,55 @@ pip install -e ".[dev]"
 pytest
 ```
 
-Lean 4, Mathlib and the LLM API key are needed from milestones B2 and B4
-onwards; installation instructions will be added here when those milestones
-land.
+`pytest` runs the unit tests only; they need no network, API key or Lean.
+
+## Installing Lean 4 and Mathlib
+
+The checker runs real Lean. The Lean project lives in [`lean/`](lean) and pins
+Lean `v4.36.0` with Mathlib `v4.36.0`.
+
+1. **Install elan**, Lean's version manager (it puts `lean` and `lake` in
+   `~/.elan/bin` and adds that to your PATH).
+
+   Windows (PowerShell):
+
+   ```powershell
+   curl.exe -sSfL -o elan-init.ps1 https://raw.githubusercontent.com/leanprover/elan/master/elan-init.ps1
+   powershell -NoProfile -ExecutionPolicy Bypass -Command '& .\elan-init.ps1 -NoPrompt $true -DefaultToolchain none'
+   Remove-Item elan-init.ps1
+   ```
+
+   macOS / Linux:
+
+   ```bash
+   curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+   ```
+
+   Open a new terminal afterwards so `lake` is on your PATH.
+
+2. **Download Mathlib and its prebuilt cache** (several GB; the right Lean
+   toolchain is installed automatically):
+
+   ```bash
+   cd lean
+   lake exe cache get
+   lake build
+   ```
+
+3. **Check the installation** by running the real-Lean tests from the project
+   root (about 6 minutes; each check loads Mathlib, about 23 s on a typical
+   Windows laptop):
+
+   ```bash
+   pytest -m lean
+   ```
+
+   To refresh the captured Lean output used by the parser's unit tests (for
+   example after upgrading Mathlib), set `RA_CAPTURE_FIXTURES=1` while running
+   that command.
+
+The app finds `lake` on your PATH or in `~/.elan/bin`, so step 1's new
+terminal is only needed for running `lake` by hand.
 
 ## Configuration
 

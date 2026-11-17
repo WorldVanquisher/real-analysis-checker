@@ -1,0 +1,7 @@
+/tmp/ra_checker/Check.lean:7:2: error: linarith failed to find a contradiction
+x y : ℝ
+h : x < y
+a✝ : x ≤ y
+⊢ False
+failed
+'student_claim' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]

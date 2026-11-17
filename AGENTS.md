@@ -37,5 +37,9 @@ Project: Real Analysis Homework Checker. Read `docs/ARCHITECTURE.md` and
 
 ```bash
 pip install -e ".[dev]"   # install
-pytest                    # unit tests
+pytest                    # unit tests (no Lean, no network)
+pytest -m lean            # real Lean + Mathlib tests (~6 min)
 ```
+
+Lean output fixtures are regenerated with `RA_CAPTURE_FIXTURES=1 pytest -m lean`;
+the capture scrubs machine paths — keep it that way, the repository is public.
