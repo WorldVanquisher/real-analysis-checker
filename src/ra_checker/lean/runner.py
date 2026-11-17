@@ -75,7 +75,8 @@ class SubprocessLeanRunner:
         self.max_output_chars = max_output_chars
         self._lean_version: str | None = None
 
-    def run(self, source: str) -> LeanRun:
+    def run(self, source: str, timeout_s: float | None = None) -> LeanRun:
+        """``timeout_s`` overrides the configured limit (used by the warm-up)."""
         if not self.project_dir.is_dir():
             raise LeanUnavailableError(f"Lean project directory not found: {self.project_dir}")
         with tempfile.TemporaryDirectory(
@@ -84,7 +85,7 @@ class SubprocessLeanRunner:
             path = Path(tmp) / CHECK_FILE_NAME
             path.write_text(source, encoding="utf-8", newline="\n")
             exit_code, timed_out, stdout, stderr, duration = self._execute(
-                [*self.command, str(path)], self.timeout_s
+                [*self.command, str(path)], timeout_s or self.timeout_s
             )
         return LeanRun(
             source=source,
@@ -170,7 +171,7 @@ class FakeLeanRunner:
         self.lean_version = lean_version
         self.sources: list[str] = []
 
-    def run(self, source: str) -> LeanRun:
+    def run(self, source: str, timeout_s: float | None = None) -> LeanRun:
         self.sources.append(source)
         return LeanRun(
             source=source,

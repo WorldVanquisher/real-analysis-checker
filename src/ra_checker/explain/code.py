@@ -5,11 +5,14 @@ each block, the statement and Lean's verdict. Its answer is then checked
 deterministically:
 
 * only blocks that exist in the code are kept (one per tag, in code order);
-* every Lean name the explanation writes in backticks must occur in that
-  block, the statement or the RaChecker definitions — otherwise the block's
-  explanation is withheld and replaced by an automatic summary built from the
-  concept cards, so an explanation can never describe a lemma or tactic the
-  proof does not use;
+* every Lean name the explanation writes in backticks must occur in the
+  checked proof (any block — explanations rightly refer back to hypotheses
+  like `hε` and forward to later steps), the statement or the RaChecker
+  definitions — otherwise the block's explanation is withheld and replaced by
+  an automatic summary built from the concept cards, so an explanation can
+  never describe a lemma or tactic the proof does not use. (Version 1 required
+  names to occur in the same block; the first live evaluation showed that this
+  withheld correct explanations, so the scope is now the whole proof.)
 * if the LLM is unavailable, every block gets the automatic summary.
 """
 
@@ -111,6 +114,7 @@ def explain_code(report: CheckReport, llm: LLMClient) -> CodeExplanation | None:
         )
 
     answers = {b.step_id: b for b in result.value.blocks}
+    whole_proof = report.translation.tactic_block
     blocks = []
     for row in rows:
         answer = answers.get(row.step_id)
@@ -118,7 +122,7 @@ def explain_code(report: CheckReport, llm: LLMClient) -> CodeExplanation | None:
             blocks.append(_automatic(row))
             continue
         texts = (answer.lean_syntax, answer.math_meaning, answer.role, answer.why_needed)
-        stray = ungrounded_mentions(" ".join(texts), row.lean_code, statement)
+        stray = ungrounded_mentions(" ".join(texts), whole_proof, statement)
         if stray:
             blocks.append(_automatic(row, stray))
             continue
@@ -136,8 +140,7 @@ def explain_code(report: CheckReport, llm: LLMClient) -> CodeExplanation | None:
         )
 
     overview = result.value.overview.strip()
-    all_code = "\n".join(r.lean_code for r in rows)
-    if not overview or ungrounded_mentions(overview, all_code, statement):
+    if not overview or ungrounded_mentions(overview, whole_proof, statement):
         overview = "The Lean proof follows the blocks below, one per step."
     return CodeExplanation(overview, tuple(blocks), result.model)
 

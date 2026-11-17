@@ -51,11 +51,12 @@ def failed_report(lean_runner):
 def test_correct_fix_is_verified_and_wrong_fix_is_not(lean_runner):
     checker, llm, report = failed_report(lean_runner)
 
-    llm.responses[CORRECTION_TASK] = CorrectionOutput(corrected_tactics="positivity", explanation="…")
+    llm.responses[CORRECTION_TASK] = CorrectionOutput(corrected_proof="-- [S1]\npositivity", explanation="…")
     good = checker.suggest_correction(report, 0)
     assert good.verified, good.reasons
+    assert [c.step_id for c in good.changes] == ["S1"]
 
-    llm.responses[CORRECTION_TASK] = CorrectionOutput(corrected_tactics="exact le_of_lt hx", explanation="…")
+    llm.responses[CORRECTION_TASK] = CorrectionOutput(corrected_proof="-- [S1]\nexact le_of_lt hx", explanation="…")
     bad = checker.suggest_correction(report, 0)
     assert not bad.verified and bad.status is S.VERIFICATION_FAILED
 

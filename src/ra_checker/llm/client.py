@@ -127,24 +127,18 @@ class AnthropicClient:
         start = time.monotonic()
         try:
             response = self._sdk.beta.messages.parse(**kwargs)
-        except anthropic.AuthenticationError:
-            raise LLMUnavailableError("The Anthropic API rejected the API key.") from None
-        except anthropic.PermissionDeniedError:
-            raise LLMUnavailableError("The API key is not allowed to use this model.") from None
-        except anthropic.NotFoundError:
-            raise LLMUnavailableError(f"The model '{self.model}' is not available.") from None
-        except anthropic.RateLimitError:
-            raise LLMUnavailableError("The LLM API is rate-limiting requests; try again shortly.") from None
-        except anthropic.BadRequestError as exc:
-            raise LLMUnavailableError(f"The LLM API rejected the request (HTTP {exc.status_code}).") from None
-        except anthropic.APIStatusError as exc:
-            raise LLMUnavailableError(f"The LLM API returned an error (HTTP {exc.status_code}).") from None
-        except anthropic.APITimeoutError:
-            raise LLMUnavailableError("The LLM API did not answer in time.") from None
-        except anthropic.APIConnectionError:
-            raise LLMUnavailableError("Could not connect to the LLM API.") from None
-        except pydantic.ValidationError:
-            raise LLMOutputError("The LLM's answer did not match the expected format.") from None
+        except (anthropic.APIError, pydantic.ValidationError) as exc:
+            # Diagnostics for the operator: the type and underlying cause, never the
+            # response body (the redacting log formatter also strips any key).
+            cause = exc.__cause__ or exc.__context__
+            logger.warning(
+                "llm task=%s failed: %s%s request=%s",
+                task,
+                type(exc).__name__,
+                f" caused by {type(cause).__name__}: {str(cause)[:200]}" if cause else "",
+                getattr(getattr(exc, "response", None), "headers", {}).get("request-id"),
+            )
+            raise self._translate(exc) from None
         duration = time.monotonic() - start
 
         usage = getattr(response, "usage", None)
@@ -174,6 +168,29 @@ class AnthropicClient:
         if not isinstance(value, schema):
             raise LLMOutputError("The LLM did not return a structured answer.")
         return StructuredResult(value=value, **result_meta)
+
+
+    def _translate(self, exc: Exception) -> LLMError:
+        """Map an SDK error to the pipeline's three error types (most specific first)."""
+        if isinstance(exc, pydantic.ValidationError):
+            return LLMOutputError("The LLM's answer did not match the expected format.")
+        if isinstance(exc, anthropic.AuthenticationError):
+            return LLMUnavailableError("The Anthropic API rejected the API key.")
+        if isinstance(exc, anthropic.PermissionDeniedError):
+            return LLMUnavailableError("The API key is not allowed to use this model.")
+        if isinstance(exc, anthropic.NotFoundError):
+            return LLMUnavailableError(f"The model '{self.model}' is not available.")
+        if isinstance(exc, anthropic.RateLimitError):
+            return LLMUnavailableError("The LLM API is rate-limiting requests; try again shortly.")
+        if isinstance(exc, anthropic.BadRequestError):
+            return LLMUnavailableError(f"The LLM API rejected the request (HTTP {exc.status_code}).")
+        if isinstance(exc, anthropic.APIStatusError):
+            return LLMUnavailableError(f"The LLM API returned an error (HTTP {exc.status_code}).")
+        if isinstance(exc, anthropic.APITimeoutError):
+            return LLMUnavailableError("The LLM API did not answer in time.")
+        if isinstance(exc, anthropic.APIConnectionError):
+            return LLMUnavailableError("Could not connect to the LLM API.")
+        return LLMUnavailableError(f"The LLM API call failed ({type(exc).__name__}).")
 
 
 Responder = pydantic.BaseModel | Exception | Callable[[LLMRequest], pydantic.BaseModel]

@@ -81,6 +81,16 @@ Proof:   By the fundamental theorem of calculus it equals 1³/3 − 0³/3 = 1/3.
 **Expected:** the checker says the problem is outside what it currently
 supports (sequences of real numbers). Nothing is sent to Lean.
 
+## Recorded run (2026-11-17, `claude-opus-5-5`)
+
+| Input | How it was run | What happened |
+| --- | --- | --- |
+| 1 | evaluation case `correct_sum_of_limits` (same text) | Verified, every step translated as written (94 s). |
+| 2 | in the app, Learning Mode | Rejected at S5 with a correct explanation ("adding these only gives … < 2ε"), hints, mapping and lessons; the corrected proof changes S2 and S3 to ε/2 and is **Verified by Lean**. Also evaluation case `incorrect_epsilon_not_halved`. |
+| 3 | not run with this exact text | The evaluation's three incomplete-proof cases were all rejected at the faulty step. |
+| 4 | evaluation case `ambiguous_which_sequence` | Clarification: "What is the sequence (its defining formula or recurrence)…?" |
+| 5 | evaluation case `out_of_scope_integral` | Declined as outside the supported topics. |
+
 ## What to look for in every run
 
 * The formal statement is shown next to the original **before** anything is

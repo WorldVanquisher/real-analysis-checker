@@ -190,18 +190,21 @@ def _correction(report: CheckReport, index: int, checker: Checker | None) -> Non
         st.info(correction)
         return
     if correction.verified:
-        st.success("**Verified by Lean** — with this change, Lean accepts the whole formal proof.")
+        st.success("**Verified by Lean** — with these changes, Lean accepts the whole formal proof.")
     else:
         why = "; ".join(correction.reasons) or "Lean did not accept it"
         st.warning(f"**Unverified suggestion** — Lean did not accept it ({why}). Treat it as an idea only.")
     st.markdown(f"**What changes:** {correction.explanation}")
-    before, after = st.columns(2)
-    with before:
-        st.markdown(f"**Before** (step {correction.step_id or '—'})")
-        st.code(correction.original_code, language="lean")
-    with after:
-        st.markdown("**After**")
-        st.code(correction.corrected_code, language="lean")
+    for change in correction.changes:
+        where = " — where Lean reported the error" if change.step_id == correction.focus_step else ""
+        st.markdown(f"**Step {change.step_id}**{where}")
+        before, after = st.columns(2)
+        with before:
+            st.caption("Before")
+            st.code(change.before or "(no code)", language="lean")
+        with after:
+            st.caption("After")
+            st.code(change.after or "(no code)", language="lean")
     st.caption("Your own result above is unchanged: this is a suggestion to learn from.")
 
 
@@ -354,7 +357,10 @@ def _error_card(error, steps: dict[str, str], learning: bool = False) -> None:
         if error.step_id:
             label = "your step" if error.step_id.startswith("S") else "a step added by the translator"
             where.append(f"{label} **{error.step_id}**")
-        if error.line:
+        # Same numbering as the "Generated Lean code" listing above.
+        if error.file_line:
+            where.append(f"line {error.file_line} of the generated Lean code")
+        elif error.line:
             where.append(f"line {error.line} of the proof")
         st.markdown("**Location:** " + (", ".join(where) or "not determined"))
         if error.step_id in steps:

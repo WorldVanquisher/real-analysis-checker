@@ -41,6 +41,10 @@ def test_cases_are_well_formed():
         assert c.problem.strip() and c.proof.strip() and c.notes.strip(), c.id
         if c.expected_error_step:
             assert re.fullmatch(r"S[1-9][0-9]*", c.expected_error_step), c.id
+        if c.expected_error_quote:  # must be words the student actually wrote
+            assert " ".join(c.expected_error_quote.split()) in " ".join(c.proof.split()), c.id
+        if c.category in ("incorrect", "incomplete"):
+            assert c.expected_error_quote, c.id
         if c.reference_statement:
             assert check_statement(c.reference_statement).ok, c.id
     for c in CASES:
@@ -75,6 +79,23 @@ def test_failed_case_with_localization():
     )
     assert result.status_ok and result.localization_ok and result.error_step == "S3"
     assert result.compiled is True  # Lean ran; the error is not a Lean-side one
+
+
+def test_localization_matches_the_students_words_not_the_step_number():
+    checker, *_ = make_checker(STATEMENT_OK, UNSOLVED)
+    hit = run_case(
+        case(category="incorrect", expected_status=(S.VERIFICATION_FAILED,),
+             expected_error_quote="|(a_n + 1) − (A + 1)|"),
+        checker, explain=False,
+    )
+    assert hit.localization_ok and hit.error_step == "S3"
+    assert hit.error_step_text.startswith("Then for n ≥ N")
+    checker, *_ = make_checker(STATEMENT_OK, UNSOLVED)
+    miss = run_case(
+        case(category="incorrect", expected_status=(S.VERIFICATION_FAILED,), expected_error_quote="Let ε > 0."),
+        checker, explain=False,
+    )
+    assert miss.localization_ok is False
 
 
 def test_clarification_case_never_runs_lean():

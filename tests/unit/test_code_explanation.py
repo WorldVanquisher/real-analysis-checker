@@ -52,17 +52,28 @@ def test_grounded_explanations_are_kept_in_code_order():
     assert request.effort == "medium"
 
 
-def test_explanation_mentioning_names_not_in_the_code_is_withheld():
+def test_explanation_mentioning_names_not_in_the_proof_is_withheld():
     explanation, _ = run(answer(
         block("S1", "`intro ε hε` and then `linarith` with `half_pos`."),
-        block("S2"),  # mentions `intro`, not in S2's code
+        block("S2", "Uses `nlinarith` to pick N."),
         block("S3", "`rw [e]` then `exact hN n hn`."),
     ))
     s1, s2, s3 = explanation.blocks
     assert s1.source == "automatic" and s1.withheld_mentions == ("linarith", "half_pos")
-    assert s2.source == "automatic" and "intro" in s2.withheld_mentions
+    assert s2.source == "automatic" and s2.withheld_mentions == ("nlinarith",)
     assert s3.source == "llm"
     assert "`intro`" in s1.lean_syntax  # the automatic summary names what the block uses
+
+
+def test_references_to_other_blocks_of_the_proof_are_allowed():
+    # Found in the first live evaluation: explanations rightly refer back to
+    # hypotheses introduced earlier (here `hε` from S1) and to other steps.
+    explanation, _ = run(answer(
+        block("S1"),
+        block("S2", "Applies `ha` to the `ε` and `hε` from `intro`."),
+        block("S3", "Finishes the goal opened by `refine` after `obtain` gave `hN`."),
+    ))
+    assert [b.source for b in explanation.blocks] == ["llm", "llm", "llm"]
 
 
 def test_missing_and_invented_blocks():

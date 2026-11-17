@@ -53,6 +53,10 @@ def main(argv: list[str] | None = None) -> int:
     if checker is None:
         print("The checker is not ready:\n" + "\n".join(f"- {p}" for p in problems))
         return 1
+    if hasattr(checker.lean, "wait"):
+        print("Warming up Lean (after a restart this can take several minutes) …", flush=True)
+        status = checker.lean.wait()
+        print(f"    Lean {status.state} after {status.seconds:.0f} s {status.message}".rstrip(), flush=True)
 
     results = []
     for number, case in enumerate(cases, start=1):

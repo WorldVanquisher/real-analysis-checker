@@ -4,7 +4,7 @@ with a Checker built from fakes injected through session state."""
 from pathlib import Path
 
 import pytest
-from pipeline_helpers import PROBLEM, PROOF, make_checker, parse_answer
+from pipeline_helpers import PROBLEM, PROOF, TACTICS, make_checker, parse_answer
 from streamlit.testing.v1 import AppTest
 from translation_helpers import OK, STATEMENT_OK, UNSOLVED
 
@@ -124,8 +124,10 @@ def test_learning_mode_offers_hints_before_a_lean_checked_correction():
     from ra_checker.analysis.correction import CORRECTION_TASK, CorrectionOutput
 
     checker, llm, lean = make_checker(STATEMENT_OK, UNSOLVED, OK)  # statement, proof, correction
+    head = TACTICS.split("-- [S3]\n")[0]
     llm.responses[CORRECTION_TASK] = CorrectionOutput(
-        corrected_tactics="refine ⟨N, fun n hn => ?_⟩\nsimpa using hN n hn", explanation="Finish with simpa."
+        corrected_proof=f"{head}-- [S3]\nrefine ⟨N, fun n hn => ?_⟩\nsimpa using hN n hn",
+        explanation="Finish with simpa.",
     )
     at = start(checker)
     at.radio(key="mode").set_value("Learning Mode")
@@ -163,6 +165,7 @@ def test_failure_shows_location_explanation_and_unverified_hint():
     assert "Lean did not accept the formalized proof." in texts(at.error)
     page = texts(at.markdown)
     assert "your step **S3**" in page
+    assert "of the generated Lean code" in page  # same numbering as the code listing
     assert "Suggested direction (not checked by Lean)" in page
 
 

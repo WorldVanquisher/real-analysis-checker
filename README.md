@@ -5,11 +5,12 @@ A student types a problem and their proof; the app formalizes both in
 **Lean 4 + Mathlib**, runs the real Lean checker, and explains where and why
 verification failed — in language a beginner can follow.
 
-> **Status: the basic version and the advanced features are built** and work
-> end to end with real Lean. **No part has yet run against the real Claude
-> API** — every LLM step is tested with a stand-in LLM — so the `v0.1.0`
-> release waits for an API key and the live checks listed in
-> [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md#waiting-for-an-api-key).
+> **Status: `v0.1.0` — the basic version and the advanced features work end
+> to end with the real Claude API and real Lean.** On the 20-case evaluation
+> set: 0 false verifications, every case got its expected outcome, every
+> generated proof compiled, and every mistake was located at the right step.
+> Results and the fixes the first live run led to are in
+> [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md#first-live-run-2026-11-17-claude-opus-5-5-leanmathlib-v4360).
 
 ## How it works
 
@@ -164,6 +165,11 @@ press **Yes, it matches — check my proof**. A check takes about half a minute,
 most of it Lean loading Mathlib. If something is missing (API key, Lean,
 Mathlib), the app says what and disables checking.
 
+Right after a computer restart, Lean's first run has to read all of Mathlib
+from disk, which took about 7 minutes on the development machine. The app
+starts this in the background as soon as it opens and shows a notice; a check
+started meanwhile simply waits until Lean is ready.
+
 ## Configuration
 
 Settings come from environment variables, or from a `.env` file in the project
@@ -191,7 +197,7 @@ report records which model actually answered.
 ## Tests
 
 ```bash
-pytest            # 375 unit tests: no network, no API key, no Lean (~15 s)
+pytest            # 383 unit tests: no network, no API key, no Lean (~15 s)
 pytest -m lean    # 34 real Lean + Mathlib tests (~20 min; last run 19 min 8 s)
 pytest -m llm     # live Claude API calls: needs ANTHROPIC_API_KEY and costs money
 ```

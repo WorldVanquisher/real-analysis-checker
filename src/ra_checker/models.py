@@ -280,6 +280,7 @@ class ErrorAnalysis(_Model):
     explanation: NonBlankStr
     step_id: StepId | None = None
     line: int | None = Field(default=None, ge=1)  # line within the tactic block
+    file_line: int | None = Field(default=None, ge=1)  # line in the generated Lean file
     correction_direction: str | None = None
     math_interpretation: str | None = None  # what the failure means mathematically
     lean_concept: str | None = None  # the Lean idea involved (chosen by rules, not the LLM)

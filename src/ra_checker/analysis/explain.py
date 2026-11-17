@@ -204,6 +204,7 @@ def analyze_failure(
                 explanation=explanation,
                 step_id=location.step_id,
                 line=location.block_line,
+                file_line=location.file_line,
                 correction_direction=answer.correction_direction.strip() or None,
                 math_interpretation=answer.math_interpretation.strip() or None,
                 lean_concept=lean_concept_for(kind, diagnostic.message),
@@ -257,6 +258,7 @@ def _lean_side(kind: LeanErrorKind, diagnostic: Diagnostic, location: ErrorLocat
         explanation=_LEAN_SIDE_TEXT[kind],
         step_id=location.step_id,
         line=location.block_line,
+        file_line=location.file_line,
         correction_direction=_LEAN_SIDE_HINT,
         math_interpretation=_TRANSLATION_ONLY,
         lean_concept=lean_concept_for(kind, diagnostic.message),
@@ -277,6 +279,7 @@ def _fallback(kind: LeanErrorKind, diagnostic: Diagnostic, location: ErrorLocati
         explanation=_FALLBACK_TEXT.get(kind, _FALLBACK_TEXT[LeanErrorKind.OTHER]) + _UNDETERMINED_SUFFIX,
         step_id=location.step_id,
         line=location.block_line,
+        file_line=location.file_line,
         correction_direction=None,
         lean_concept=lean_concept_for(kind, diagnostic.message),
     )

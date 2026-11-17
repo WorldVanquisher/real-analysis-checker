@@ -54,6 +54,13 @@ def main() -> None:
     checker, problems = get_checker()
     if problems:
         ui.setup_problems(problems)
+    warm_up = getattr(checker.lean, "status", None) if checker is not None else None
+    if warm_up is not None and warm_up.state == "running":
+        st.info(
+            f"Lean is loading Mathlib in the background ({warm_up.seconds:.0f} s so far). "
+            "Right after a computer restart this can take several minutes; a check you "
+            "start now simply waits until Lean is ready."
+        )
 
     st.subheader("Step 1 · Your problem and proof")
     problem_text = st.text_area(

@@ -11,7 +11,10 @@ measured automatically:
 * **statement exact match** — the formal statement equals the case's reference
   statement up to whitespace (a lower bound: an equivalent statement written
   differently counts as a mismatch, so a human grades faithfulness);
-* **localization accuracy** — the first analysed error is in the expected step;
+* **localization accuracy** — the first analysed error is in the step that
+  contains the case's ``expected_error_quote`` (the student's own words, so the
+  metric does not depend on how the proof was split into steps; the first live
+  run showed that comparing step numbers does);
 * **code-explanation grounding** — share of explained blocks whose LLM text
   passed the grounding check.
 
@@ -57,7 +60,8 @@ class EvalCase:
     problem: str
     proof: str
     expected_status: tuple[VerificationStatus, ...]
-    expected_error_step: str | None = None
+    expected_error_step: str | None = None  # fallback when no quote is given
+    expected_error_quote: str | None = None  # words of the student's faulty step
     reference_statement: str | None = None
     notes: str = ""
 
@@ -79,9 +83,11 @@ class CaseResult:
     assumptions_added: tuple[str, ...]
     statement_exact_match: bool | None
     error_step: str | None
+    error_step_text: str | None
     localization_ok: bool | None
     explained_blocks: int
     grounded_blocks: int
+    withheld_mentions: tuple[str, ...]
     duration_s: float
     detail: str
     report: dict | None = field(default=None, repr=False)
@@ -101,6 +107,7 @@ def load_cases(path: Path) -> tuple[EvalCase, ...]:
                 proof=item["proof"],
                 expected_status=tuple(VerificationStatus(s) for s in item["expected_status"]),
                 expected_error_step=item.get("expected_error_step"),
+                expected_error_quote=item.get("expected_error_quote"),
                 reference_statement=item.get("reference_statement"),
                 notes=item.get("notes", ""),
             )
@@ -124,6 +131,8 @@ def run_case(case: EvalCase, checker: Checker, *, explain: bool = True) -> CaseR
     first_step = report.error_analyses[0].step_id if report.error_analyses else None
     statement = report.statement.lean_statement if report.statement else None
     blocks = explanation.blocks if explanation else ()
+    step_texts = {s.id: s.text for s in report.analysis.proof_steps} if report.analysis else {}
+    step_text = step_texts.get(first_step or "")
     return CaseResult(
         case_id=case.id,
         category=case.category,
@@ -140,13 +149,11 @@ def run_case(case: EvalCase, checker: Checker, *, explain: bool = True) -> CaseR
             else None
         ),
         error_step=first_step,
-        localization_ok=(
-            first_step == case.expected_error_step
-            if case.expected_error_step and status is VerificationStatus.VERIFICATION_FAILED
-            else None
-        ),
+        error_step_text=step_text,
+        localization_ok=_localized(case, status, first_step, step_text),
         explained_blocks=len(blocks),
         grounded_blocks=sum(b.source == "llm" for b in blocks),
+        withheld_mentions=tuple(sorted({m for b in blocks for m in b.withheld_mentions})),
         duration_s=time.monotonic() - start,
         detail=report.status_detail,
         report=json.loads(report.model_dump_json()),
@@ -224,6 +231,16 @@ def render_summary(results: list[CaseResult], summary: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _localized(case: EvalCase, status: VerificationStatus, step_id: str | None, step_text: str | None) -> bool | None:
+    if status is not VerificationStatus.VERIFICATION_FAILED:
+        return None
+    if case.expected_error_quote:
+        return step_text is not None and _squash(case.expected_error_quote) in _squash(step_text)
+    if case.expected_error_step:
+        return step_id == case.expected_error_step
+    return None
+
+
 def _compiled(report: CheckReport) -> bool | None:
     if report.lean_run is None:
         return None
@@ -237,8 +254,8 @@ def _harness_failure(case: EvalCase, exc: Exception, duration: float) -> CaseRes
     return CaseResult(
         case_id=case.id, category=case.category, status="harness_error", status_ok=False,
         false_verified=False, compiled=None, statement=None, back_translation=None,
-        assumptions_added=(), statement_exact_match=None, error_step=None, localization_ok=None,
-        explained_blocks=0, grounded_blocks=0, duration_s=duration,
+        assumptions_added=(), statement_exact_match=None, error_step=None, error_step_text=None,
+        localization_ok=None, explained_blocks=0, grounded_blocks=0, withheld_mentions=(), duration_s=duration,
         detail=f"{type(exc).__name__}: {exc}",
     )
 

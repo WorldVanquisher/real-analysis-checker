@@ -21,6 +21,10 @@ from ra_checker.lean.diagnostics import LeanOutput
 from ra_checker.models import LeanRun, VerificationStatus
 
 STANDARD_AXIOMS: frozenset[str] = frozenset({"propext", "Classical.choice", "Quot.sound"})
+TIMEOUT_REASON = (
+    "Lean did not finish within the time limit (right after a computer restart, "
+    "Lean can need several minutes to load Mathlib — please try again)"
+)
 
 
 class LeanVerdict(BaseModel):
@@ -63,7 +67,7 @@ def decide_proof_verdict(
             "the checked statement differs from the statement the student confirmed",
         )
     if run.timed_out:
-        return verdict(VerificationStatus.RUNTIME_ERROR, "Lean did not finish within the time limit")
+        return verdict(VerificationStatus.RUNTIME_ERROR, TIMEOUT_REASON)
     if environment_problem := _header_error(assembled, output):
         return verdict(VerificationStatus.RUNTIME_ERROR, environment_problem)
 
@@ -112,9 +116,7 @@ def decide_statement_check(
     if run.source != assembled.source:
         raise ValueError("the Lean run did not check the assembled file")
     if run.timed_out:
-        return StatementCheck(
-            ok=False, reasons=("Lean did not finish within the time limit",), runtime_problem=True
-        )
+        return StatementCheck(ok=False, reasons=(TIMEOUT_REASON,), runtime_problem=True)
     if environment_problem := _header_error(assembled, output):
         return StatementCheck(ok=False, reasons=(environment_problem,), runtime_problem=True)
     if output.errors:

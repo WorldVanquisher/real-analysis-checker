@@ -135,6 +135,16 @@ def test_sdk_errors_map_to_unavailable_without_leaking(sdk_error, message):
     assert excinfo.value.__cause__ is None  # SDK error (with its body) not chained
 
 
+def test_failures_are_logged_with_their_cause_but_never_the_key(caplog):
+    error = anthropic.APIConnectionError(request=REQUEST)
+    error.__cause__ = OSError(f"getaddrinfo failed while sending {SECRET}")
+    with caplog.at_level("WARNING", logger="ra_checker"), pytest.raises(LLMUnavailableError):
+        call(client(StubSDK(error=error)), task="parse_problem")
+    assert "llm task=parse_problem failed: APIConnectionError caused by OSError: getaddrinfo failed" in caplog.text
+    # The raw record keeps the cause text; the redacting formatter installed by
+    # configure_logging removes keys from what is written — checked in test_logging_setup.
+
+
 def test_fake_client_variants():
     fake = FakeLLMClient(
         {

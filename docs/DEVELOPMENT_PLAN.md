@@ -4,8 +4,8 @@ One milestone at a time. Each milestone ends with: what was implemented, which
 tests ran and their real output, known errors and limitations. A milestone is
 not "done" until its acceptance criteria are met by tests that actually ran.
 
-Status legend: ✅ done · 🟡 built, a live check is still pending · ⏳ next ·
-⬜ planned
+Status legend: ✅ done · ⏳ next · ⬜ planned (milestones marked 🟡 until the
+first live run on 2026-11-17 are now ✅; see "First live run" below)
 
 ## Basic version (MVP)
 
@@ -98,7 +98,7 @@ Status legend: ✅ done · 🟡 built, a live check is still pending · ⏳ next
   lemmas, whose names change between Mathlib versions — a useful hint for the
   B5 prompts. Only sequences are covered so far.
 
-### 🟡 B4 — LLM client + problem parsing
+### ✅ B4 — LLM client + problem parsing
 
 * Adds dependency: `anthropic`.
 * Files: `src/ra_checker/llm/{client,prompts}.py`,
@@ -126,7 +126,7 @@ Status legend: ✅ done · 🟡 built, a live check is still pending · ⏳ next
   reference problem (in scope, verbatim steps, no questions), an
   out-of-scope problem and an ambiguous one.
 
-### 🟡 B5 — Lean translation (statement, then proof)
+### ✅ B5 — Lean translation (statement, then proof)
 
 * Files: `src/ra_checker/translation/{__init__,statement,proof}.py`,
   `src/ra_checker/analysis/classify.py` (pulled forward from B6 for the repair
@@ -158,7 +158,7 @@ Status legend: ✅ done · 🟡 built, a live check is still pending · ⏳ next
   tests to be added with B7's end-to-end run). Not yet done: a vacuity check
   that the formal hypotheses are not contradictory.
 
-### 🟡 B6 — Error analysis
+### ✅ B6 — Error analysis
 
 * Files: `src/ra_checker/analysis/{classify,locate,explain}.py`, explanation
   prompt in `llm/prompts.py`, `tests/unit/test_error_analysis.py`,
@@ -184,7 +184,7 @@ Status legend: ✅ done · 🟡 built, a live check is still pending · ⏳ next
   at the end of a proof is attributed to the last step with the goal passed on.
 * Pending: explanation quality against the real model (API key).
 
-### 🟡 B7 — Pipeline + Streamlit UI
+### ✅ B7 — Pipeline + Streamlit UI
 
 * Adds dependency: `streamlit`.
 * Files: `src/ra_checker/pipeline.py`, `src/ra_checker/report/presentation.py`,
@@ -217,7 +217,7 @@ Status legend: ✅ done · 🟡 built, a live check is still pending · ⏳ next
   screen until the next interaction.
 * Pending: the real end-to-end run with the real LLM (needs an API key).
 
-### 🟡 B8 — Basic release
+### ✅ B8 — Basic release
 
 * README installation guide (Windows first, then macOS/Linux notes), test case
   set, demo script; tag `v0.1.0`.
@@ -226,10 +226,9 @@ Status legend: ✅ done · 🟡 built, a live check is still pending · ⏳ next
   paste-ready inputs (correct, wrong, incomplete, ambiguous, out of scope);
   test set — 300 unit tests, 30 real-Lean tests, 8 Lean-verified reference
   exercises, 3 live-LLM tests.
-* Held back on purpose: the `v0.1.0` tag. No LLM stage has run against the
-  real Claude API yet, so the release waits for: `pytest -m llm`, the five
-  demo inputs run in the app with the outcomes recorded in `docs/DEMO.md`, and
-  any prompt fixes those runs require.
+* The `v0.1.0` tag was held back until the first live run against the real
+  Claude API (2026-11-17, see "First live run" below); it was tagged after
+  that run and its fixes.
 
 ## Advanced version
 
@@ -238,12 +237,12 @@ Every advanced milestone keeps all B tests green; none may weaken verification.
 | Milestone | Scope | Key acceptance |
 | --- | --- | --- |
 | ✅ A1 | Quick Check / Learning mode toggle and plumbing | Quick mode shows the verdict and concise feedback with every Basic field still available (collapsed); Learning mode shows everything. |
-| 🟡 A2 | Lean code explanation, per tagged block, grounded in the actual code and verdict | Explanations reference only identifiers present in the code (checked). |
+| ✅ A2 | Lean code explanation, per tagged block, grounded in the actual code and verdict | Explanations reference only identifiers present in the code (checked). |
 | ✅ A3 | Proof mapping table | Added/omitted flags computed from tags, not LLM claims; "changed" judgments labelled as LLM-assessed. |
-| 🟡 A4 | Enhanced 7-part error explanation + corrected code | A correction is labelled "Verified by Lean" only after passing §3 rules; otherwise "Unverified suggestion". |
+| ✅ A4 | Enhanced 7-part error explanation + corrected code | A correction is labelled "Verified by Lean" only after passing §3 rules; otherwise "Unverified suggestion". |
 | ✅ A5 | Contextual learning cards + practice questions | Cards selected by tactics detected in code; every card example and practice answer is compiled by Lean in tests. |
-| 🟡 A6 | Hints-before-correction ladder in learning mode | Correction hidden until hints are requested. |
-| 🟡 A7 | Evaluation set and harness | Report covers the six spec metrics; human rubric documented. |
+| ✅ A6 | Hints-before-correction ladder in learning mode | Correction hidden until hints are requested. |
+| ✅ A7 | Evaluation set and harness | Report covers the six spec metrics; human rubric documented. |
 | ⬜ A8 | Optional hardening: Lean in a no-network Docker container; persistent Lean REPL for speed | Same results as local runner on the eval set. |
 
 **A1 + A3 result.** The app has a Quick Check / Learning Mode toggle
@@ -332,16 +331,81 @@ shared by the app and the harness. 375 unit tests pass (including the harness
 with fakes, a detected false verification, a crash mid-case, and the CLI's
 refusal without `--yes`).
 
-## Waiting for an API key
+## First live run (2026-11-17, `claude-opus-5-5`, Lean/Mathlib v4.36.0)
 
-Everything above that is marked 🟡 has been tested with a stand-in LLM against
-real Lean, but never against the real Claude API. With `ANTHROPIC_API_KEY` set:
+**Live tests.** `pytest -m llm`: 4 of 4 passed on the first run (parsing a
+reference problem with verbatim steps, flagging an out-of-scope and an
+ambiguous problem, a grounded code explanation).
 
-1. `pytest -m llm` — the live tests (parsing, code explanation);
-2. `python eval/run_eval.py --yes` — the evaluation set; it must report zero
-   false verifications; grade `grading.csv`;
-3. the five inputs in `docs/DEMO.md` in the app, recording what happened;
-4. fix what the real model exposes (prompts are versioned), then tag `v0.1.0`.
+**Evaluation set** (`python eval/run_eval.py --yes`, 20 cases, about 30
+minutes):
+
+| Metric | Result |
+| --- | --- |
+| False verifications | **0** |
+| Status accuracy | 100% (20/20) |
+| Lean compile rate | 100% (15/15 cases that reached Lean) |
+| Statement exact match (lower bound) | 25% — every mismatch was an equivalent statement (see below) |
+| Error localization | 83% as first measured, 100% (6/6) after fixing the metric (see below) |
+| Code-explanation grounding | 91% as first measured, 100% (57/57) after fixing the check (see below) |
+
+All three correct proofs and the three correct-but-hard ones were verified;
+all six wrong or incomplete proofs were rejected at the step that holds the
+mistake, with accurate explanations (for example *"you wrote | |a_n| − |L| |
+≥ |a_n − L|, but the inequality actually goes the other way"*); the three
+false claims (1/a_n → 1/L, increasing ⇒ convergent, a_n/b_n → A/B) each got
+the right clarification question instead of a formalization; the ambiguous
+and the out-of-scope problem were declined. Where the translator had to depart
+from the student (the √ problem, where 1/√n fails at n = 0; the cited monotone
+convergence theorem), the step map recorded it, so the app says "Lean accepted
+a formal proof that differs from yours".
+
+**Statement faithfulness, graded by Claude (the developer) — to be confirmed by
+a human grader with `eval/RUBRIC.md`:** all 15 formal statements are faithful.
+The exact-match metric missed equivalent forms: `(A : ℝ) (c : ℝ)` for
+`(A c : ℝ)`; `SeqConverges a` as the hypothesis; for "a_n = 1/n for
+n = 1, 2, …" the statement constrains `a n = 1/n` for `n ≥ 1` and leaves `a 0`
+free — equivalent to the problem and declared in `assumptions_added`. The trap
+cases kept "∃ M, ∀ n" and "L ≤ 1".
+
+**What the live run found, and the fixes** (all with tests):
+
+1. *Lean cold start.* The first Lean run after a reboot took 427 s (24–27 s
+   afterwards), so the first check always timed out. Fixed with a background
+   warm-up (`lean/warmup.py`), a notice in the app, and a clearer timeout
+   message.
+2. *Grounding too strict.* Explanations were withheld for mentioning names
+   from other blocks of the same proof (`hε` from S1, `by_contra` from S1 in
+   S3). The check now allows any name in the checked proof
+   (`explain_code.v2`); re-measured on the same reports: 57/57 grounded.
+3. *Localization metric depended on step numbering.* The one "miss" was the
+   reader splitting a sentence into two steps, so the faulty "so the sequence
+   is bounded" became S4 instead of S3. Cases now name the student's words
+   (`expected_error_quote`); re-scored on the same reports: 6/6.
+4. *Corrections confined to the failing step could not fix earlier mistakes.*
+   In the app, the ε-not-halved proof fails at S5 but the mistake is choosing
+   ε in S2 and S3; the correction honestly came back "Unverified". Corrections
+   now rewrite the whole proof with the same step tags (`suggest_correction.v2`),
+   changed steps are computed from the code, and Lean still decides: on the
+   same real report the correction now changes exactly S2 and S3 to `ε / 2`
+   and is **Verified by Lean**.
+5. *Line numbers.* The error card counted lines of the tactic block while the
+   code listing numbers the whole file; it now cites the file line.
+6. *Silent connection errors.* LLM failures were mapped to a friendly message
+   but their cause was never logged; it now is (type and cause, never the key).
+   This showed that the in-app browser preview server cannot reach the API
+   (`WinError 10061`), while the app started normally works — a property of
+   the preview sandbox, not of the app.
+
+**In the app** (started normally, Learning Mode): demo input 2 went through
+formalize → confirm → "Lean did not accept the formalized proof", located at
+S5 with a correct explanation, hint ladder, mapping and Lean lessons. Demo
+inputs 1, 4 and 5 are identical to evaluation cases and behaved as described
+above; demo input 3 was not run separately (the evaluation's incomplete-proof
+cases cover it).
+
+A check takes about 80–100 s end to end (four to six Claude calls with
+adaptive thinking, two Lean runs of about 25 s).
 
 ## Technical risks
 

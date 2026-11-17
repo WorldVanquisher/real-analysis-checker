@@ -229,6 +229,16 @@ recovery, so it is not taken to mean "placeholder" (it still blocks
 almost all of it the import (12–15 s with narrower imports). The full import is
 kept for now; a persistent Lean process (A8) removes the import cost.
 
+**Cold start.** The first Lean run after the computer restarts must read the
+whole Mathlib build from disk: 427 s on the development machine, against
+24–27 s for the next runs (measured during the first live run). With the
+normal 120 s limit the first check after every reboot timed out.
+`lean/warmup.py` therefore wraps the runner: as soon as the app or the
+evaluation harness builds the checker, one throwaway statement check starts in
+the background with a 15-minute limit; real checks wait for it instead of
+racing it, a failed warm-up never blocks them, and the app shows that Lean is
+loading.
+
 ## 7. Safety model
 
 Lean can run arbitrary code at compile time (`#eval`, `run_cmd`, custom
@@ -289,11 +299,16 @@ development machine).
 **Seven-part explanation and corrections (A4, A6).** Each `ErrorAnalysis` also
 holds a mathematical interpretation (LLM) and the relevant Lean concept (rules:
 error kind, or the tactic named in Lean's message mapped to its concept card).
-`analysis/correction.py` produces a corrected version of the failing step on
-request: the LLM writes replacement tactics for that step only, Python splices
-them under the step's tag, screens and assembles the proof around the same
-locked statement, and Lean decides with the same verdict rules — "Verified by
-Lean" only for `VERIFIED`, otherwise "Unverified suggestion". In Learning Mode
+`analysis/correction.py` produces a corrected proof on request: the LLM
+rewrites the whole tactic block as little as possible, keeping every step tag
+in order (the mistake is often in an earlier step than the one where Lean
+fails — the first live run showed a correction confined to the failing step
+could not fix ε chosen instead of ε/2 in S2 and S3); which steps changed is
+computed by comparing the code; Python screens and assembles the proof around
+the same locked statement, and Lean decides with the same verdict rules —
+"Verified by Lean" only for `VERIFIED`, otherwise "Unverified suggestion". A
+suggestion that adds, removes or reorders steps, or changes nothing, never
+reaches Lean. In Learning Mode
 the app reveals a hint, then the mathematical interpretation, then the
 correction, one click at a time; the student's own report is never changed.
 
@@ -318,7 +333,10 @@ last step with `at_end_of_proof`, and the open goal is shown to the explainer.
   error becomes `LLMUnavailableError` (→ `RUNTIME_ERROR`) with a generic
   message — the SDK error is not chained, so neither the key nor response
   bodies leak. The SDK's built-in retries (2) handle transient failures; the
-  timeout is `RA_LLM_TIMEOUT_S`.
+  timeout is `RA_LLM_TIMEOUT_S`. Every failure is logged at WARNING with the
+  exception type, its underlying cause and the request id (never the key or
+  the response body), so an operator can tell a refused connection from a
+  rejected key.
 * Student text is wrapped in `<problem>` / `<student_proof>` tags, any closing
   tag inside it is neutralized, and the system prompt tells the model to treat
   it as data. Logs record task, model, tokens, duration and request id — never

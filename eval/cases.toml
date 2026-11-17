@@ -4,9 +4,11 @@
 # Fields
 #   id, category, problem, proof   — the input, as a student would type it
 #   expected_status                — acceptable final statuses
-#   expected_error_step            — for wrong proofs: the step (S1, S2, …) that
-#                                    contains the mistake, counting the student's
-#                                    sentences/steps in order; optional
+#   expected_error_quote           — for wrong proofs: words from the student's
+#                                    step that contains the mistake (matched
+#                                    against the step the checker blames, so it
+#                                    does not depend on how the proof is split);
+#                                    expected_error_step (S1, …) is a fallback
 #   reference_statement            — a faithful formal statement (type-checked
 #                                    by tests/lean/test_eval_cases_lean.py);
 #                                    optional, used for statement accuracy
@@ -58,7 +60,7 @@ proof = """Let ε > 0. Since a_n → A, there is N₁ with |a_n − A| < ε for 
 Since b_n → B, there is N₂ with |b_n − B| < ε for all n ≥ N₂. Let N = max(N₁, N₂). \
 For n ≥ N, |a_n + b_n − (A + B)| ≤ |a_n − A| + |b_n − B| < ε."""
 expected_status = ["verification_failed"]
-expected_error_step = "S5"
+expected_error_quote = "≤ |a_n − A| + |b_n − B| < ε"
 notes = "The final estimate only gives 2ε. The mistake surfaces in the last step."
 
 [[case]]
@@ -68,7 +70,7 @@ problem = "Prove that the sequence 1/(n+1), n = 0, 1, 2, …, converges to 0."
 proof = """Let ε > 0. Choose a natural number N with N > ε. \
 Then for n ≥ N we have 1/(n+1) < 1/N < ε."""
 expected_status = ["verification_failed"]
-expected_error_step = "S3"
+expected_error_quote = "1/(n+1) < 1/N < ε"
 notes = "N > ε does not give 1/N < ε (needs N > 1/ε)."
 
 [[case]]
@@ -78,7 +80,7 @@ problem = "Prove that if a_n → L then |a_n| → |L|."
 proof = """Let ε > 0. Choose N with |a_n − L| < ε for n ≥ N. \
 For n ≥ N, | |a_n| − |L| | ≥ |a_n − L|, so | |a_n| − |L| | < ε."""
 expected_status = ["verification_failed"]
-expected_error_step = "S3"
+expected_error_quote = "| |a_n| − |L| | ≥ |a_n − L|"
 notes = "Uses the reverse triangle inequality in the wrong direction."
 
 # -------------------------------------------------------------- incomplete
@@ -90,7 +92,7 @@ problem = "Prove that every convergent sequence of real numbers is bounded."
 proof = """Let a_n → L. Taking ε = 1, there is N such that |a_n − L| < 1 for all n ≥ N. \
 Hence |a_n| < |L| + 1 for all n ≥ N, so the sequence is bounded."""
 expected_status = ["verification_failed", "translation_failed"]
-expected_error_step = "S3"
+expected_error_quote = "so the sequence is bounded"
 notes = "Forgets the finitely many terms before N."
 
 [[case]]
@@ -100,7 +102,7 @@ problem = "Prove that every convergent sequence of real numbers is a Cauchy sequ
 proof = """Let ε > 0. Since a_n → L, choose N with |a_n − L| < ε/2 for all n ≥ N. \
 Hence the sequence is Cauchy."""
 expected_status = ["verification_failed", "translation_failed"]
-expected_error_step = "S3"
+expected_error_quote = "Hence the sequence is Cauchy"
 notes = "The estimate |a_m − a_n| < ε is never shown."
 
 [[case]]
@@ -110,7 +112,7 @@ problem = "Suppose a_n ≤ b_n ≤ c_n for all n, and a_n → L and c_n → L. P
 proof = """Let ε > 0. Choose N with |c_n − L| < ε for n ≥ N. \
 Then b_n ≤ c_n < L + ε for n ≥ N, so |b_n − L| < ε."""
 expected_status = ["verification_failed", "translation_failed"]
-expected_error_step = "S3"
+expected_error_quote = "so |b_n − L| < ε"
 notes = "Only the upper bound is established."
 
 # ------------------------------------------------------ missing assumption
