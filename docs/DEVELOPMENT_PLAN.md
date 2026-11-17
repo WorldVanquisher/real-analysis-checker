@@ -243,7 +243,7 @@ Every advanced milestone keeps all B tests green; none may weaken verification.
 | 🟡 A4 | Enhanced 7-part error explanation + corrected code | A correction is labelled "Verified by Lean" only after passing §3 rules; otherwise "Unverified suggestion". |
 | ✅ A5 | Contextual learning cards + practice questions | Cards selected by tactics detected in code; every card example and practice answer is compiled by Lean in tests. |
 | 🟡 A6 | Hints-before-correction ladder in learning mode | Correction hidden until hints are requested. |
-| ⬜ A7 | Evaluation set and harness | Report covers the six spec metrics; human rubric documented. |
+| 🟡 A7 | Evaluation set and harness | Report covers the six spec metrics; human rubric documented. |
 | ⬜ A8 | Optional hardening: Lean in a no-network Docker container; persistent Lean REPL for speed | Same results as local runner on the eval set. |
 
 **A1 + A3 result.** The app has a Quick Check / Learning Mode toggle
@@ -311,6 +311,37 @@ time, a hint, then the mathematical interpretation, then the corrected proof
 (only then are the LLM and Lean run); Quick Check keeps the concise card.
 365 unit tests pass; with real Lean, a `positivity` fix of a type-mismatch
 proof is verified and a non-fix is labelled unverified.
+
+**A7 result (not yet run against the real API).** `eval/cases.toml` holds 20
+cases: 3 each of correct, incorrect, incomplete, missing-assumption,
+hard-to-formalize and likely-to-be-mistranslated proofs (the six categories of
+the spec), plus an ambiguous and an out-of-scope problem; wrong proofs name the
+step that holds the mistake, and 9 cases carry a reference statement, all of
+which type-check in real Lean. `ra_checker/evaluation.py` runs each case
+through the real Checker (confirming the statement automatically and recording
+it for human grading) and measures status accuracy, **false verifications**
+(VERIFIED for a case that must not verify — a release blocker), Lean compile
+rate, statement exact match (a lower bound), error localization accuracy and
+code-explanation grounding; the human metrics — statement faithfulness, error
+explanation quality, code-explanation correctness, learning-content usefulness —
+go to `grading.csv`, graded with `eval/RUBRIC.md`. `eval/run_eval.py` refuses
+to spend API credit without `--yes`, can select cases or categories, writes
+`eval/results/<timestamp>/` (git-ignored) and exits non-zero on any false
+verification. The real-checker construction moved to `ra_checker/setup.py`,
+shared by the app and the harness. 375 unit tests pass (including the harness
+with fakes, a detected false verification, a crash mid-case, and the CLI's
+refusal without `--yes`).
+
+## Waiting for an API key
+
+Everything above that is marked 🟡 has been tested with a stand-in LLM against
+real Lean, but never against the real Claude API. With `ANTHROPIC_API_KEY` set:
+
+1. `pytest -m llm` — the live tests (parsing, code explanation);
+2. `python eval/run_eval.py --yes` — the evaluation set; it must report zero
+   false verifications; grade `grading.csv`;
+3. the five inputs in `docs/DEMO.md` in the app, recording what happened;
+4. fix what the real model exposes (prompts are versioned), then tag `v0.1.0`.
 
 ## Technical risks
 

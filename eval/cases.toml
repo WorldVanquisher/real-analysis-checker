@@ -1,0 +1,221 @@
+# Evaluation set (milestone A7). Run with `python eval/run_eval.py --yes`
+# (real Claude API + real Lean; costs API usage). See eval/RUBRIC.md.
+#
+# Fields
+#   id, category, problem, proof   — the input, as a student would type it
+#   expected_status                — acceptable final statuses
+#   expected_error_step            — for wrong proofs: the step (S1, S2, …) that
+#                                    contains the mistake, counting the student's
+#                                    sentences/steps in order; optional
+#   reference_statement            — a faithful formal statement (type-checked
+#                                    by tests/lean/test_eval_cases_lean.py);
+#                                    optional, used for statement accuracy
+#   notes                          — what the case probes
+#
+# Any case whose expected_status does not contain "verified" must never come
+# back VERIFIED: the harness counts that as a false verification.
+
+# ----------------------------------------------------------------- correct
+
+[[case]]
+id = "correct_sum_of_limits"
+category = "correct"
+problem = "Suppose a_n → A and b_n → B. Prove that a_n + b_n → A + B."
+proof = """Let ε > 0. Since a_n → A, there is N₁ with |a_n − A| < ε/2 for all n ≥ N₁. \
+Since b_n → B, there is N₂ with |b_n − B| < ε/2 for all n ≥ N₂. Let N = max(N₁, N₂). \
+For n ≥ N, by the triangle inequality |a_n + b_n − (A + B)| ≤ |a_n − A| + |b_n − B| < ε/2 + ε/2 = ε."""
+expected_status = ["verified"]
+reference_statement = "(a b : ℕ → ℝ) (A B : ℝ) (ha : SeqConvergesTo a A) (hb : SeqConvergesTo b B) : SeqConvergesTo (fun n => a n + b n) (A + B)"
+notes = "Standard ε/2 argument."
+
+[[case]]
+id = "correct_squeeze"
+category = "correct"
+problem = "Suppose a_n ≤ b_n ≤ c_n for all n, and a_n → L and c_n → L. Prove that b_n → L."
+proof = """Let ε > 0. Choose N₁ with |a_n − L| < ε for n ≥ N₁ and N₂ with |c_n − L| < ε for n ≥ N₂. \
+For n ≥ max(N₁, N₂) we have L − ε < a_n ≤ b_n ≤ c_n < L + ε, so |b_n − L| < ε."""
+expected_status = ["verified"]
+reference_statement = "(a b c : ℕ → ℝ) (L : ℝ) (hab : ∀ n, a n ≤ b n) (hbc : ∀ n, b n ≤ c n) (ha : SeqConvergesTo a L) (hc : SeqConvergesTo c L) : SeqConvergesTo b L"
+notes = "Squeeze theorem with explicit inequalities."
+
+[[case]]
+id = "correct_constant_multiple"
+category = "correct"
+problem = "Suppose a_n → A and c is a real number. Prove that c·a_n → c·A."
+proof = """Let ε > 0. Choose N such that |a_n − A| < ε/(|c| + 1) for all n ≥ N. \
+Then for n ≥ N, |c·a_n − c·A| = |c|·|a_n − A| ≤ |c|·ε/(|c| + 1) < ε."""
+expected_status = ["verified"]
+reference_statement = "(a : ℕ → ℝ) (A c : ℝ) (ha : SeqConvergesTo a A) : SeqConvergesTo (fun n => c * a n) (c * A)"
+notes = "Uses |c| + 1 to avoid dividing by zero."
+
+# --------------------------------------------------------------- incorrect
+
+[[case]]
+id = "incorrect_epsilon_not_halved"
+category = "incorrect"
+problem = "Suppose a_n → A and b_n → B. Prove that a_n + b_n → A + B."
+proof = """Let ε > 0. Since a_n → A, there is N₁ with |a_n − A| < ε for all n ≥ N₁. \
+Since b_n → B, there is N₂ with |b_n − B| < ε for all n ≥ N₂. Let N = max(N₁, N₂). \
+For n ≥ N, |a_n + b_n − (A + B)| ≤ |a_n − A| + |b_n − B| < ε."""
+expected_status = ["verification_failed"]
+expected_error_step = "S5"
+notes = "The final estimate only gives 2ε. The mistake surfaces in the last step."
+
+[[case]]
+id = "incorrect_wrong_N"
+category = "incorrect"
+problem = "Prove that the sequence 1/(n+1), n = 0, 1, 2, …, converges to 0."
+proof = """Let ε > 0. Choose a natural number N with N > ε. \
+Then for n ≥ N we have 1/(n+1) < 1/N < ε."""
+expected_status = ["verification_failed"]
+expected_error_step = "S3"
+notes = "N > ε does not give 1/N < ε (needs N > 1/ε)."
+
+[[case]]
+id = "incorrect_triangle_direction"
+category = "incorrect"
+problem = "Prove that if a_n → L then |a_n| → |L|."
+proof = """Let ε > 0. Choose N with |a_n − L| < ε for n ≥ N. \
+For n ≥ N, | |a_n| − |L| | ≥ |a_n − L|, so | |a_n| − |L| | < ε."""
+expected_status = ["verification_failed"]
+expected_error_step = "S3"
+notes = "Uses the reverse triangle inequality in the wrong direction."
+
+# -------------------------------------------------------------- incomplete
+
+[[case]]
+id = "incomplete_bounded_tail_only"
+category = "incomplete"
+problem = "Prove that every convergent sequence of real numbers is bounded."
+proof = """Let a_n → L. Taking ε = 1, there is N such that |a_n − L| < 1 for all n ≥ N. \
+Hence |a_n| < |L| + 1 for all n ≥ N, so the sequence is bounded."""
+expected_status = ["verification_failed", "translation_failed"]
+expected_error_step = "S3"
+notes = "Forgets the finitely many terms before N."
+
+[[case]]
+id = "incomplete_cauchy_no_estimate"
+category = "incomplete"
+problem = "Prove that every convergent sequence of real numbers is a Cauchy sequence."
+proof = """Let ε > 0. Since a_n → L, choose N with |a_n − L| < ε/2 for all n ≥ N. \
+Hence the sequence is Cauchy."""
+expected_status = ["verification_failed", "translation_failed"]
+expected_error_step = "S3"
+notes = "The estimate |a_m − a_n| < ε is never shown."
+
+[[case]]
+id = "incomplete_squeeze_one_side"
+category = "incomplete"
+problem = "Suppose a_n ≤ b_n ≤ c_n for all n, and a_n → L and c_n → L. Prove that b_n → L."
+proof = """Let ε > 0. Choose N with |c_n − L| < ε for n ≥ N. \
+Then b_n ≤ c_n < L + ε for n ≥ N, so |b_n − L| < ε."""
+expected_status = ["verification_failed", "translation_failed"]
+expected_error_step = "S3"
+notes = "Only the upper bound is established."
+
+# ------------------------------------------------------ missing assumption
+
+[[case]]
+id = "missing_reciprocal_nonzero"
+category = "missing_assumption"
+problem = "Suppose a_n → L. Prove that 1/a_n → 1/L."
+proof = """Let ε > 0. For n large, |1/a_n − 1/L| = |a_n − L| / (|a_n|·|L|), which is small \
+because |a_n − L| is small. Hence 1/a_n → 1/L."""
+expected_status = ["needs_clarification", "verification_failed", "translation_failed"]
+notes = "Needs L ≠ 0 (and a_n ≠ 0); the claim is false without it. Must never be verified."
+
+[[case]]
+id = "missing_bounded_monotone"
+category = "missing_assumption"
+problem = "Prove that every increasing sequence of real numbers converges."
+proof = """An increasing sequence approaches its supremum s: for ε > 0 there is N with \
+a_N > s − ε, and then s − ε < a_n ≤ s for all n ≥ N. Hence a_n → s."""
+expected_status = ["needs_clarification", "verification_failed", "translation_failed"]
+notes = "False without boundedness (a_n = n). Must never be verified."
+
+[[case]]
+id = "missing_quotient_limit"
+category = "missing_assumption"
+problem = "Suppose a_n → A and b_n → B. Prove that a_n / b_n → A / B."
+proof = """By the product rule and the reciprocal rule, a_n / b_n = a_n · (1/b_n) → A · (1/B) = A/B."""
+expected_status = ["needs_clarification", "verification_failed", "translation_failed"]
+notes = "Needs B ≠ 0. Must never be verified."
+
+# --------------------------------------------------- hard to formalize
+
+[[case]]
+id = "hard_monotone_convergence_citation"
+category = "hard_to_formalize"
+problem = "Let a_n be increasing and bounded above. Prove that a_n converges."
+proof = """By the monotone convergence theorem, a bounded increasing sequence converges."""
+expected_status = ["verified", "verification_failed", "translation_failed"]
+reference_statement = "(a : ℕ → ℝ) (hmono : Monotone a) (hbdd : ∃ M, ∀ n, a n ≤ M) : SeqConverges a"
+notes = "Correct, but cites a named theorem; the translation must find it in Mathlib."
+
+[[case]]
+id = "hard_sqrt_difference"
+category = "hard_to_formalize"
+problem = "Prove that √(n+1) − √n → 0."
+proof = """We have √(n+1) − √n = 1/(√(n+1) + √n) ≤ 1/√n. Given ε > 0, choose N > 1/ε². \
+Then for n ≥ N, 1/√n ≤ 1/√N < ε."""
+expected_status = ["verified", "verification_failed", "translation_failed"]
+notes = "Correct, but needs square-root algebra (and care at n = 0)."
+
+[[case]]
+id = "hard_geometric"
+category = "hard_to_formalize"
+problem = "Prove that (1/2)^n → 0."
+proof = """Since 2^n ≥ n + 1 for all n, we have 0 < (1/2)^n ≤ 1/(n+1), and 1/(n+1) → 0. \
+By the squeeze theorem, (1/2)^n → 0."""
+expected_status = ["verified", "verification_failed", "translation_failed"]
+reference_statement = ": SeqConvergesTo (fun n : ℕ => (1 / 2 : ℝ) ^ n) 0"
+notes = "Correct; uses an auxiliary inequality proved by induction."
+
+# ------------------------------------------- likely to be mistranslated
+
+[[case]]
+id = "mistranslation_index_from_one"
+category = "mistranslation"
+problem = "Let a_n = 1/n for n = 1, 2, 3, …. Prove that a_n → 0."
+proof = """Let ε > 0 and choose N > 1/ε. For n ≥ N, 0 < 1/n ≤ 1/N < ε."""
+expected_status = ["verified", "verification_failed", "translation_failed"]
+reference_statement = ": SeqConvergesTo (fun n : ℕ => 1 / ((n : ℝ) + 1)) 0"
+notes = "Lean's ℕ starts at 0 and 1/0 = 0 in Lean. A faithful statement shifts the index; the shift must be listed in assumptions_added."
+
+[[case]]
+id = "mistranslation_quantifier_order"
+category = "mistranslation"
+problem = "Prove that a convergent sequence is bounded: there is one M such that |a_n| ≤ M for every n."
+proof = """Let a_n → L. With ε = 1 there is N with |a_n − L| < 1 for n ≥ N. Let \
+M = max(|a_0|, …, |a_{N−1}|, |L| + 1). Then |a_n| ≤ M for every n."""
+expected_status = ["verified", "verification_failed", "translation_failed"]
+reference_statement = "(a : ℕ → ℝ) (L : ℝ) (h : SeqConvergesTo a L) : ∃ M : ℝ, ∀ n : ℕ, |a n| ≤ M"
+notes = "The trivial reading ∀ n, ∃ M must not be used: M must not depend on n."
+
+[[case]]
+id = "mistranslation_strict_inequality"
+category = "mistranslation"
+problem = "Suppose a_n → L and a_n < 1 for all n. Prove that L ≤ 1."
+proof = """Suppose L > 1 and let ε = L − 1. For n large, |a_n − L| < ε, so a_n > L − ε = 1, \
+contradicting a_n < 1. Hence L ≤ 1."""
+expected_status = ["verified", "verification_failed", "translation_failed"]
+reference_statement = "(a : ℕ → ℝ) (L : ℝ) (h : SeqConvergesTo a L) (hlt : ∀ n, a n < 1) : L ≤ 1"
+notes = "The conclusion is L ≤ 1, not L < 1 (which would be false, e.g. a_n = 1 − 1/(n+1))."
+
+# ------------------------------------------------- ambiguous / out of scope
+
+[[case]]
+id = "ambiguous_which_sequence"
+category = "ambiguous"
+problem = "Prove that the sequence converges."
+proof = """It is decreasing and bounded below, so it converges."""
+expected_status = ["needs_clarification"]
+notes = "No sequence is given."
+
+[[case]]
+id = "out_of_scope_integral"
+category = "out_of_scope"
+problem = "Prove that the integral of x² from 0 to 1 equals 1/3."
+proof = """By the fundamental theorem of calculus it equals 1³/3 − 0³/3 = 1/3."""
+expected_status = ["needs_clarification"]
+notes = "Integration is outside the supported topics."

@@ -381,10 +381,13 @@ hints before a full correction.
   snippets, no LLM. Skipped automatically when Lean is not installed.
 * **Live LLM tests** (`-m llm`): opt-in, cost money, never run by default.
 * **UI tests**: `streamlit.testing.v1.AppTest` with fakes.
-* **Evaluation set** (A7): `eval/cases/*.yaml` covering correct, incorrect,
-  incomplete, missing-assumption, hard-to-formalize, and mistranslation cases,
-  plus a harness that reports compile rate, statement accuracy, localization
-  accuracy, and a human-graded rubric for explanation quality.
+* **Evaluation set** (A7): `eval/cases.toml` (20 cases: correct, incorrect,
+  incomplete, missing-assumption, hard-to-formalize, mistranslation-prone,
+  ambiguous, out-of-scope), `ra_checker/evaluation.py` and
+  `eval/run_eval.py --yes` against the real API and Lean. Automatic metrics:
+  status accuracy, false verifications (must be zero), Lean compile rate,
+  statement exact match, localization accuracy, code-explanation grounding;
+  human metrics via `grading.csv` and `eval/RUBRIC.md`.
 
 ## 12. Target layout
 
@@ -401,5 +404,5 @@ real-analysis-checker/
 │   └── explain/  learning/                      (advanced)
 ├── lean/            Lake project: lean-toolchain, lakefile, RaChecker/Defs.lean
 ├── tests/           unit/, lean/, llm/, fixtures/
-└── eval/            cases/, run_eval.py, RUBRIC.md   (advanced)
+└── eval/            cases.toml, run_eval.py, RUBRIC.md, results/ (git-ignored)
 ```
