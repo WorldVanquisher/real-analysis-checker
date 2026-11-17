@@ -237,14 +237,32 @@ Every advanced milestone keeps all B tests green; none may weaken verification.
 
 | Milestone | Scope | Key acceptance |
 | --- | --- | --- |
-| ⬜ A1 | Quick Check / Learning mode toggle and plumbing | Quick mode output unchanged from B7. |
-| ⬜ A2 | Lean code explanation, per tagged block, grounded in the actual code and verdict | Explanations reference only identifiers present in the code (checked). |
-| ⬜ A3 | Proof mapping table | Added/omitted flags computed from tags, not LLM claims; "changed" judgments labelled as LLM-assessed. |
+| ✅ A1 | Quick Check / Learning mode toggle and plumbing | Quick mode shows the verdict and concise feedback with every Basic field still available (collapsed); Learning mode shows everything. |
+| ⏳ A2 | Lean code explanation, per tagged block, grounded in the actual code and verdict | Explanations reference only identifiers present in the code (checked). |
+| ✅ A3 | Proof mapping table | Added/omitted flags computed from tags, not LLM claims; "changed" judgments labelled as LLM-assessed. |
 | ⬜ A4 | Enhanced 7-part error explanation + corrected code | A correction is labelled "Verified by Lean" only after passing §3 rules; otherwise "Unverified suggestion". |
 | ⬜ A5 | Contextual learning cards + practice questions | Cards selected by tactics detected in code; every card example and practice answer is compiled by Lean in tests. |
 | ⬜ A6 | Hints-before-correction ladder in learning mode | Correction hidden until hints are requested. |
 | ⬜ A7 | Evaluation set and harness | Report covers the six spec metrics; human rubric documented. |
 | ⬜ A8 | Optional hardening: Lean in a no-network Docker container; persistent Lean REPL for speed | Same results as local runner on the eval set. |
+
+**A1 + A3 result.** The app has a Quick Check / Learning Mode toggle
+(`ui/app.py`); the current toggle decides the view, so switching after a check
+re-renders without re-checking. Quick Check shows the verdict, a one-line Lean
+result and the error cards, with the problem and proof, the formal statement
+with the generated Lean code, and the step table in collapsed sections — the
+acceptance criterion was refined from "unchanged from B7" because the Advanced
+spec asks Quick Check for "only the verification result and concise
+feedback", while the Basic spec requires every field to stay available.
+Learning Mode shows everything plus "Your reasoning ↔ Lean code"
+(`report/mapping.py`): each student step beside the Lean tactics tagged with
+it in the checked code, translator-added blocks labelled as not part of the
+student's proof, and an "only approximate" warning when more than half of the
+steps were changed or not translated (or more steps were added than the
+student wrote). "Changed" is labelled as the translator's own assessment;
+"added" and "not translated" come from the code. 306 unit tests pass,
+including `AppTest` runs of both modes and a mode switch that does not re-run
+Lean; the toggle was checked in the live app.
 
 ## Technical risks
 

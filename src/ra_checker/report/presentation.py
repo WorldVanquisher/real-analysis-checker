@@ -46,9 +46,11 @@ ORIGIN_LABELS: dict[ErrorOrigin, str] = {
     ErrorOrigin.FORMALIZATION: "In the Lean translation, not your mathematics",
     ErrorOrigin.UNDETERMINED: "Could not be determined",
 }
+# "added" and "not translated" are determined from the code's tags; "changed"
+# is the translator's own assessment, and the label says so.
 STEP_STATUS_LABELS: dict[StepStatus, str] = {
     StepStatus.TRANSLATED: "translated as written",
-    StepStatus.CHANGED: "changed by the translator",
+    StepStatus.CHANGED: "changed (the translator's own assessment)",
     StepStatus.OMITTED: "not translated",
     StepStatus.ADDED: "added by the translator",
 }

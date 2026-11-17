@@ -7,6 +7,7 @@ import streamlit as st
 
 from ra_checker.models import CheckReport, VerificationStatus
 from ra_checker.pipeline import PendingCheck
+from ra_checker.report.mapping import build_mapping
 from ra_checker.report.presentation import (
     STEP_STATUS_LABELS,
     explanation_lines,
@@ -65,7 +66,12 @@ def report_view(
     report: CheckReport,
     statement_attempts: tuple[StatementAttempt, ...] = (),
     proof_attempts: tuple[ProofAttempt, ...] = (),
+    *,
+    learning: bool = False,
 ) -> None:
+    """Quick Check: verdict and concise feedback, with every detail one click
+    away in collapsed sections. Learning Mode: everything expanded, plus the
+    reasoning ↔ Lean mapping."""
     head = headline(report)
     _LEVEL_WIDGETS[head.level](f"**{head.title}** {head.body}")
 
@@ -76,39 +82,102 @@ def report_view(
                 st.markdown(f"- {question}")
         st.caption("Edit the problem statement above to answer, then formalize again.")
 
-    st.subheader("Original problem")
+    if learning:
+        _problem_and_proof(report)
+        _statement_and_code(report)
+        _verification_result(report)
+        _error_cards(report)
+        _mapping_view(report)
+    else:
+        _verification_result(report, concise=True)
+        _error_cards(report)
+        with st.expander("Your problem and proof"):
+            _problem_and_proof(report, headings=False)
+        if report.statement is not None or report.lean_run is not None:
+            with st.expander("Formal statement and generated Lean code"):
+                _statement_and_code(report, headings=False)
+        if report.translation is not None:
+            with st.expander("How your steps were translated"):
+                _step_table(report)
+    _technical_details(report, statement_attempts, proof_attempts)
+
+
+def _problem_and_proof(report: CheckReport, headings: bool = True) -> None:
+    _heading("Original problem", headings)
     st.markdown(_quote(report.submission.problem_text))
-    st.subheader("Your proof")
+    _heading("Your proof", headings)
     st.markdown(_quote(report.submission.proof_text))
 
+
+def _statement_and_code(report: CheckReport, headings: bool = True) -> None:
     if report.statement is not None:
-        st.subheader("Formalized statement")
+        _heading("Formalized statement", headings)
         st.code(report.statement.lean_statement, language="lean")
         st.markdown(f"**In words:** {report.statement.back_translation}")
         if report.statement.confirmed_by_student:
             st.caption("You confirmed that this matches the problem.")
-
     if report.lean_run is not None:
-        st.subheader("Generated Lean code")
+        _heading("Generated Lean code", headings)
         st.code(report.lean_run.source, language="lean", line_numbers=True)
+
+
+def _verification_result(report: CheckReport, concise: bool = False) -> None:
+    run = report.lean_run
+    if run is None:
+        return
+    timing = "timed out" if run.timed_out else f"finished in {run.duration_s:.0f} s"
+    if not concise:
         st.subheader("Verification result")
-        run = report.lean_run
-        timing = "timed out" if run.timed_out else f"finished in {run.duration_s:.0f} s"
-        st.markdown(f"**{_STATUS_TEXT[report.status]}** — Lean {timing}.")
-        if run.lean_version:
-            st.caption(run.lean_version)
+    st.markdown(f"**{_STATUS_TEXT[report.status]}** — Lean {timing}.")
+    if run.lean_version and not concise:
+        st.caption(run.lean_version)
 
-    if report.error_analyses:
-        st.subheader("Where and why it failed")
-        steps = {s.id: s.text for s in report.analysis.proof_steps} if report.analysis else {}
-        for error in report.error_analyses:
-            _error_card(error, steps)
 
-    if report.translation is not None:
-        st.subheader("How your steps were translated")
-        _step_table(report)
+def _error_cards(report: CheckReport) -> None:
+    if not report.error_analyses:
+        return
+    st.subheader("Where and why it failed")
+    steps = {s.id: s.text for s in report.analysis.proof_steps} if report.analysis else {}
+    for error in report.error_analyses:
+        _error_card(error, steps)
 
-    _technical_details(report, statement_attempts, proof_attempts)
+
+def _mapping_view(report: CheckReport) -> None:
+    mapping = build_mapping(report)
+    if mapping is None:
+        return
+    st.subheader("Your reasoning ↔ Lean code")
+    if mapping.substantially_transformed:
+        st.warning(
+            "The translation departs substantially from your proof, so this "
+            "correspondence is only approximate: the Lean proof is not a faithful copy "
+            "of your argument."
+        )
+    for row in mapping.rows:
+        with st.container(border=True):
+            left, right = st.columns([2, 3])
+            with left:
+                st.markdown(f"**{row.step_id}** · {STEP_STATUS_LABELS[row.status]}")
+                if row.student_text:
+                    st.markdown(_quote(row.student_text))
+                else:
+                    st.markdown("*Added by the translator — not part of your proof.*")
+                if row.note:
+                    st.caption(row.note)
+            with right:
+                if row.lean_code:
+                    st.code(row.lean_code, language="lean")
+                else:
+                    st.caption("No Lean code corresponds to this step.")
+    if report.translation and report.translation.translator_notes:
+        st.caption(f"Translator's notes: {report.translation.translator_notes}")
+
+
+def _heading(text: str, show: bool) -> None:
+    if show:
+        st.subheader(text)
+    else:
+        st.markdown(f"**{text}**")
 
 
 _STATUS_TEXT = {

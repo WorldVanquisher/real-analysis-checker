@@ -45,9 +45,11 @@ def test_empty_input_shows_friendly_errors():
     assert lean.sources == []
 
 
-def test_full_flow_confirm_then_verify():
+def test_full_flow_in_learning_mode():
     checker, _, lean = make_checker()
-    at = fill(start(checker))
+    at = start(checker)
+    at.radio(key="mode").set_value("Learning Mode")
+    at = fill(at)
     assert not at.exception
     assert "Does the formal statement match your problem?" in texts(at.subheader)
     assert any("SeqConvergesTo" in c.value for c in at.code)
@@ -58,9 +60,33 @@ def test_full_flow_confirm_then_verify():
     assert "Lean accepted the formalized proof." in texts(at.success)
     headings = texts(at.subheader)
     for section in ("Original problem", "Your proof", "Formalized statement", "Generated Lean code",
-                    "Verification result", "How your steps were translated"):
+                    "Verification result", "Your reasoning ↔ Lean code"):
         assert section in headings
+    assert any(c.value == "intro ε hε" for c in at.code)  # S1's own Lean code in the mapping
     assert len(lean.sources) == 2
+
+
+def test_quick_check_is_concise_but_keeps_every_detail_available():
+    checker, *_ = make_checker()
+    at = fill(start(checker)).button(key="confirm").click().run()
+    assert not at.exception
+    assert "Lean accepted the formalized proof." in texts(at.success)
+    assert "Generated Lean code" not in texts(at.subheader)
+    labels = [e.label for e in at.expander]
+    for label in ("Your problem and proof", "Formal statement and generated Lean code",
+                  "How your steps were translated"):
+        assert label in labels
+    assert any("theorem student_claim" in c.value for c in at.code)  # inside the expander
+
+
+def test_switching_mode_after_a_check_does_not_recheck():
+    checker, _, lean = make_checker()
+    at = fill(start(checker)).button(key="confirm").click().run()
+    runs = len(lean.sources)
+    at.radio(key="mode").set_value("Learning Mode")
+    at = at.run()
+    assert "Your reasoning ↔ Lean code" in texts(at.subheader)
+    assert len(lean.sources) == runs
 
 
 def test_failure_shows_location_explanation_and_unverified_hint():

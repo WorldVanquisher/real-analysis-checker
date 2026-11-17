@@ -105,7 +105,7 @@ interface with a fake for tests.
 | `pipeline.py` | `Checker`: `formalize` (phase 1) → `PendingCheck` → student confirms → `verify` (phase 2) → `CheckReport`. | orchestration | B7 |
 | `ui/app.py`, `ui/components.py`, `ui/services.py` | Streamlit flow, rendering only, and construction of the real checker (or a list of what is missing). | user interface | B7 |
 | `explain/code_explainer.py` | Per-block code explanation grounded in the actual code and verdict. | code explanation | A2 |
-| `explain/proof_mapping.py` | Original-step ↔ Lean-block table with added/omitted/changed flags. | proof mapping | A3 |
+| `report/mapping.py` | Original-step ↔ Lean-block table with added/omitted/changed flags, built from the code's tags. | proof mapping | A3 |
 | `analysis/correction.py` | Proposes corrected code, **re-runs it through Lean**, labels it verified only if §3 passes. | enhanced errors | A4 |
 | `learning/glossary.py`, `learning/content/` | Curated, Lean-checked concept cards (intro, rw, …) selected by tactics found in the code. | learning content | A5 |
 | `learning/practice.py` | Short exercises whose answers are checked by the real Lean runner. | learning content | A5 |
@@ -342,6 +342,15 @@ with `streamlit run src/ra_checker/ui/app.py`:
    identify", a suggested direction labelled "not checked by Lean", the raw
    Lean message), the step-mapping table, and technical details (models,
    prompt versions, attempts).
+
+**Modes (A1).** *Quick Check* shows the headline, a one-line Lean result and
+the error cards; the problem and proof, the formal statement with the Lean
+code, and the step table sit in collapsed sections, so no Basic-version field
+is removed. *Learning Mode* shows all of it expanded plus the reasoning ↔ Lean
+mapping (A3, `report/mapping.py`): each student step next to the tactics
+tagged with it in the checked code, built from the tags only and flagged as
+approximate when the translation departs from most steps. The toggle only
+changes the view; switching never re-runs a check.
 
 If the API key, Lean or Mathlib is missing, the app lists what is missing and
 disables checking. Tests inject a `Checker` built from fakes through session

@@ -12,12 +12,13 @@ from __future__ import annotations
 import streamlit as st
 
 from ra_checker.input_validation import InputError, validate_submission
-from ra_checker.models import CheckReport
+from ra_checker.models import CheckMode, CheckReport
 from ra_checker.pipeline import PendingCheck
 from ra_checker.ui import components as ui
 from ra_checker.ui.services import get_checker
 
 PENDING, RESULT, EDIT_HINT = "pending_check", "result", "show_edit_hint"
+MODES = {"Quick Check": CheckMode.QUICK, "Learning Mode": CheckMode.LEARNING}
 
 st.set_page_config(page_title="Real Analysis Checker", page_icon="∑", layout="wide")
 
@@ -39,6 +40,17 @@ def main() -> None:
     state.setdefault(RESULT, None)
 
     ui.page_header()
+    mode_label = st.radio(
+        "Mode",
+        list(MODES),
+        key="mode",
+        horizontal=True,
+        captions=[
+            "The verdict and concise feedback; details on request.",
+            "Everything, plus how your reasoning maps onto the Lean code.",
+        ],
+    )
+    mode = MODES[mode_label]
     checker, problems = get_checker()
     if problems:
         ui.setup_problems(problems)
@@ -61,7 +73,7 @@ def main() -> None:
     if st.button("Formalize the statement", type="primary", disabled=checker is None, key="formalize"):
         _reset()
         try:
-            submission = validate_submission(problem_text, proof_text)
+            submission = validate_submission(problem_text, proof_text, mode)
         except InputError as exc:
             for message in exc.problems:
                 st.error(message)
@@ -91,7 +103,8 @@ def main() -> None:
     result: tuple[CheckReport, tuple, tuple] | None = state[RESULT]
     if result is not None:
         st.divider()
-        ui.report_view(*result)
+        # The current toggle decides the view, so switching modes needs no re-check.
+        ui.report_view(*result, learning=mode is CheckMode.LEARNING)
 
 
 main()
