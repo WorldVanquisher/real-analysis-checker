@@ -1,4 +1,4 @@
-/tmp/ra_checker/Check.lean:7:2: error: Type mismatch
+/tmp/ra_checker/Check.lean:9:2: error: Type mismatch
   hx
 has type
   0 < x

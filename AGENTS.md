@@ -38,7 +38,8 @@ Project: Real Analysis Homework Checker. Read `docs/ARCHITECTURE.md` and
 ```bash
 pip install -e ".[dev]"   # install
 pytest                    # unit tests (no Lean, no network)
-pytest -m lean            # real Lean + Mathlib tests (~6 min)
+pytest -m lean            # real Lean + Mathlib tests (~9 min)
+cd lean && lake build     # rebuild the RaChecker library after editing lean/
 ```
 
 Lean output fixtures are regenerated with `RA_CAPTURE_FIXTURES=1 pytest -m lean`;

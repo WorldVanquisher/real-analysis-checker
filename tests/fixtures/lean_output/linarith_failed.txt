@@ -1,4 +1,4 @@
-/tmp/ra_checker/Check.lean:7:2: error: linarith failed to find a contradiction
+/tmp/ra_checker/Check.lean:9:2: error: linarith failed to find a contradiction
 x y : ℝ
 h : x < y
 a✝ : x ≤ y

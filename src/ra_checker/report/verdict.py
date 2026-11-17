@@ -64,6 +64,8 @@ def decide_proof_verdict(
         )
     if run.timed_out:
         return verdict(VerificationStatus.RUNTIME_ERROR, "Lean did not finish within the time limit")
+    if environment_problem := _header_error(assembled, output):
+        return verdict(VerificationStatus.RUNTIME_ERROR, environment_problem)
 
     if output.errors:
         reasons = [f"Lean reported {len(output.errors)} error(s)"]
@@ -102,10 +104,16 @@ class StatementCheck(BaseModel):
     reasons: tuple[str, ...]
 
 
-def decide_statement_check(*, run: LeanRun, output: LeanOutput) -> StatementCheck:
+def decide_statement_check(
+    *, assembled: AssembledFile, run: LeanRun, output: LeanOutput
+) -> StatementCheck:
     """Did the statement elaborate? (The proof is ``sorry`` by construction.)"""
+    if run.source != assembled.source:
+        raise ValueError("the Lean run did not check the assembled file")
     if run.timed_out:
         return StatementCheck(ok=False, reasons=("Lean did not finish within the time limit",))
+    if environment_problem := _header_error(assembled, output):
+        return StatementCheck(ok=False, reasons=(environment_problem,))
     if output.errors:
         return StatementCheck(
             ok=False,
@@ -116,3 +124,17 @@ def decide_statement_check(*, run: LeanRun, output: LeanOutput) -> StatementChec
             ok=False, reasons=(f"Lean exited with code {run.exit_code}",)
         )
     return StatementCheck(ok=True, reasons=("the statement type-checks",))
+
+
+def _header_error(assembled: AssembledFile, output: LeanOutput) -> str | None:
+    """An error in the Python-written header (imports, options) is never the
+    student's or the translator's fault: it means the Lean environment is broken,
+    e.g. the RaChecker library was not built."""
+    for error in output.errors:
+        if error.line < assembled.statement_line:
+            first_line = error.message.splitlines()[0]
+            return (
+                "the Lean environment is not set up correctly "
+                f"(header line {error.line}: {first_line}); run `lake build` in lean/"
+            )
+    return None

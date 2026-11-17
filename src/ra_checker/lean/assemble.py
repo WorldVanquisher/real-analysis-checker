@@ -8,13 +8,19 @@ translator cannot weaken the theorem or add commands around it.
 Layout of a proof file::
 
     import Mathlib
+    import RaChecker
     <blank>
+    open RaChecker
     set_option autoImplicit false
     <blank>
     theorem student_claim <statement> := by
       <tactic block, re-indented by two spaces>
     <blank>
     #print axioms student_claim
+
+``RaChecker`` provides the student-friendly ε–N definitions (``SeqConvergesTo``
+and friends, each proved equivalent to Mathlib); it must be built with
+``lake build`` first.
 
 ``autoImplicit`` is switched off because Lean would otherwise turn any unknown
 lower-case name in the statement into a new universally quantified variable —
@@ -29,8 +35,8 @@ import textwrap
 from dataclasses import dataclass
 
 THEOREM_NAME = "student_claim"
-HEADER_IMPORTS: tuple[str, ...] = ("Mathlib",)
-HEADER_OPTIONS: tuple[str, ...] = ("set_option autoImplicit false",)
+HEADER_IMPORTS: tuple[str, ...] = ("Mathlib", "RaChecker")
+HEADER_COMMANDS: tuple[str, ...] = ("open RaChecker", "set_option autoImplicit false")
 INDENT = "  "
 
 
@@ -81,7 +87,7 @@ def _assemble(statement: str, proof_lines: list[str], *, axioms: bool) -> Assemb
     if not statement.strip():
         raise AssemblyError("the statement is empty")
     header = [f"import {module}" for module in HEADER_IMPORTS] + [""]
-    header += [*HEADER_OPTIONS, ""]
+    header += [*HEADER_COMMANDS, ""]
     theorem = f"theorem {THEOREM_NAME} {statement} := by".split("\n")
 
     lines = header + theorem

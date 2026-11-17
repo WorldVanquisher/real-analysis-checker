@@ -1,4 +1,4 @@
-/tmp/ra_checker/Check.lean:5:57: error: unsolved goals
+/tmp/ra_checker/Check.lean:7:57: error: unsolved goals
 case right
 x : ℝ
 ⊢ x < x + 1

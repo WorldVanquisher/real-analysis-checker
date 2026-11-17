@@ -153,28 +153,40 @@ README's Configuration section.
 dependency pinned to one release (chosen at B2). Mathlib build artefacts come
 from `lake exe cache get`; `lean/.lake/` is git-ignored.
 
-**Student-friendly definitions** (B3). Students write ε–N proofs; Mathlib states
-limits with filters (`Tendsto u atTop (𝓝 L)`). Translating ε–N reasoning
-directly into filter language would make the proof mapping unfaithful. So
-`lean/RaChecker/Defs.lean` defines the textbook notions, for example
+**Student-friendly definitions** (implemented in B3). Students write ε–N
+proofs; Mathlib states limits with filters (`Tendsto u atTop (𝓝 L)`).
+Translating ε–N reasoning directly into filter language would make the proof
+mapping unfaithful. So `lean/RaChecker/Defs.lean` defines the textbook notions
+in namespace `RaChecker`, for example
 
 ```lean
 def SeqConvergesTo (a : ℕ → ℝ) (L : ℝ) : Prop :=
   ∀ ε > 0, ∃ N : ℕ, ∀ n ≥ N, |a n - L| < ε
 ```
 
-and each definition is paired with a proven bridge lemma to Mathlib
-(`seqConvergesTo_iff_tendsto`), so the definitions are checked to mean what
-Mathlib means. The translator is instructed to use these definitions.
+| Definition | Bridge lemma (`lean/RaChecker/Bridge.lean`) |
+| --- | --- |
+| `SeqConvergesTo a L` | `seqConvergesTo_iff_tendsto : … ↔ Tendsto a atTop (𝓝 L)` |
+| `SeqConverges a` | `seqConverges_iff : … ↔ ∃ L, Tendsto a atTop (𝓝 L)` |
+| `SeqBounded a` | `seqBounded_iff_isBounded_range : … ↔ Bornology.IsBounded (Set.range a)` |
+| `SeqCauchy a` | `seqCauchy_iff_cauchySeq : … ↔ CauchySeq a` |
+| `SeqTendsToInfinity a` | `seqTendsToInfinity_iff_tendsto : … ↔ Tendsto a atTop atTop` |
+
+The bridge lemmas prove the definitions mean what Mathlib means, and let a
+proof move to Mathlib's library when convenient. The translator is instructed
+to use these definitions. The library is built with `lake build`; an error in
+the assembled file's header (for example an unbuilt library) is classified as
+`RUNTIME_ERROR`, never as a proof error. Reference exercises with
+Lean-verified formalizations live in `tests/fixtures/reference_cases.toml`.
 
 **Assembled file.** The LLM writes only the tactic block. Python writes
 everything else:
 
 ```lean
 import Mathlib
-import RaChecker.Defs          -- from B3
-open RaChecker                 -- from B3
+import RaChecker
 
+open RaChecker
 set_option autoImplicit false
 
 theorem student_claim <locked statement> := by

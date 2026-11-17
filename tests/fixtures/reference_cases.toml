@@ -1,0 +1,216 @@
+# Reference exercises: correct student proofs with hand-written, Lean-verified
+# formalizations. Each tactic block tags its steps -- [S1] … -- [Sn], one per
+# entry of `steps`, in order. The statement uses the student-friendly
+# definitions from lean/RaChecker/Defs.lean.
+#
+# Checked by tests/unit/test_reference_cases.py (structure, safety screen) and
+# tests/lean/test_reference_cases_lean.py (real Lean: every case is VERIFIED).
+# These also seed the evaluation set (milestone A7).
+
+[[case]]
+id = "const_seq"
+topic = "sequences"
+problem = "Let c be a real number. Prove that the constant sequence a_n = c converges to c."
+steps = [
+  "Let ε > 0.",
+  "Take N = 0.",
+  "Then for every n ≥ N, |a_n − c| = |c − c| = 0 < ε.",
+]
+statement = "(c : ℝ) : SeqConvergesTo (fun _ => c) c"
+tactic_block = '''
+-- [S1]
+intro ε hε
+-- [S2]
+refine ⟨0, fun n _ => ?_⟩
+-- [S3]
+simpa using hε
+'''
+
+[[case]]
+id = "one_over_n_plus_one"
+topic = "sequences"
+problem = "Prove that the sequence 1/(n+1), n = 0, 1, 2, …, converges to 0."
+steps = [
+  "Let ε > 0.",
+  "By the Archimedean property, choose a natural number N with N > 1/ε.",
+  "For n ≥ N we have n + 1 > N > 1/ε, so 0 < 1/(n+1) < ε, i.e. |1/(n+1) − 0| < ε.",
+]
+statement = ": SeqConvergesTo (fun n : ℕ => 1 / ((n : ℝ) + 1)) 0"
+tactic_block = '''
+-- [S1]
+intro ε hε
+-- [S2]
+obtain ⟨N, hN⟩ := exists_nat_gt (1 / ε)
+refine ⟨N, fun n hn => ?_⟩
+-- [S3]
+have hn' : (N : ℝ) ≤ n := by exact_mod_cast hn
+have hlt : 1 / ε < (n : ℝ) + 1 := by linarith
+have hpos : (0 : ℝ) < 1 / ((n : ℝ) + 1) := by positivity
+show |1 / ((n : ℝ) + 1) - 0| < ε
+rw [sub_zero, abs_of_pos hpos]
+calc 1 / ((n : ℝ) + 1) < 1 / (1 / ε) := one_div_lt_one_div_of_lt (one_div_pos.mpr hε) hlt
+  _ = ε := one_div_one_div ε
+'''
+
+[[case]]
+id = "sum_of_limits"
+topic = "sequences"
+problem = "Suppose a_n → A and b_n → B. Prove that a_n + b_n → A + B."
+steps = [
+  "Let ε > 0.",
+  "Since a_n → A, there is N₁ with |a_n − A| < ε/2 for all n ≥ N₁.",
+  "Since b_n → B, there is N₂ with |b_n − B| < ε/2 for all n ≥ N₂.",
+  "Let N = max(N₁, N₂).",
+  "For n ≥ N, by the triangle inequality |a_n + b_n − (A + B)| ≤ |a_n − A| + |b_n − B| < ε/2 + ε/2 = ε.",
+]
+statement = "(a b : ℕ → ℝ) (A B : ℝ) (ha : SeqConvergesTo a A) (hb : SeqConvergesTo b B) : SeqConvergesTo (fun n => a n + b n) (A + B)"
+tactic_block = '''
+-- [S1]
+intro ε hε
+-- [S2]
+obtain ⟨N₁, hN₁⟩ := ha (ε / 2) (half_pos hε)
+-- [S3]
+obtain ⟨N₂, hN₂⟩ := hb (ε / 2) (half_pos hε)
+-- [S4]
+refine ⟨max N₁ N₂, fun n hn => ?_⟩
+have h₁ := abs_lt.mp (hN₁ n (le_of_max_le_left hn))
+have h₂ := abs_lt.mp (hN₂ n (le_of_max_le_right hn))
+-- [S5]
+show |a n + b n - (A + B)| < ε
+rw [abs_lt]
+constructor <;> linarith [h₁.1, h₁.2, h₂.1, h₂.2]
+'''
+
+[[case]]
+id = "uniqueness_of_limits"
+topic = "sequences"
+problem = "Prove that a sequence has at most one limit: if a_n → L and a_n → M, then L = M."
+steps = [
+  "Suppose L ≠ M and let ε = |L − M|/2 > 0.",
+  "Choose N₁ with |a_n − L| < ε for n ≥ N₁, and N₂ with |a_n − M| < ε for n ≥ N₂.",
+  "For n = max(N₁, N₂): |L − M| ≤ |L − a_n| + |a_n − M| < 2ε = |L − M|, a contradiction.",
+]
+statement = "(a : ℕ → ℝ) (L M : ℝ) (hL : SeqConvergesTo a L) (hM : SeqConvergesTo a M) : L = M"
+tactic_block = '''
+-- [S1]
+by_contra hne
+have hε : 0 < |L - M| / 2 := half_pos (abs_pos.mpr (sub_ne_zero.mpr hne))
+-- [S2]
+obtain ⟨N₁, hN₁⟩ := hL _ hε
+obtain ⟨N₂, hN₂⟩ := hM _ hε
+-- [S3]
+have h₁ := abs_lt.mp (hN₁ (max N₁ N₂) (le_max_left _ _))
+have h₂ := abs_lt.mp (hN₂ (max N₁ N₂) (le_max_right _ _))
+have key : |L - M| < |L - M| := by
+  rw [abs_lt]
+  constructor <;> linarith [h₁.1, h₁.2, h₂.1, h₂.2]
+exact lt_irrefl _ key
+'''
+
+[[case]]
+id = "convergent_implies_bounded"
+topic = "sequences"
+problem = "Prove that every convergent sequence of real numbers is bounded."
+steps = [
+  "Let a_n → L. Taking ε = 1, there is N such that |a_n − L| < 1 for all n ≥ N.",
+  "Let M = |a_0| + |a_1| + … + |a_{N−1}| + |L| + 1.",
+  "If n < N then |a_n| ≤ M. If n ≥ N then |a_n| ≤ |a_n − L| + |L| < 1 + |L| ≤ M. Hence |a_n| ≤ M for all n.",
+]
+statement = "(a : ℕ → ℝ) (L : ℝ) (h : SeqConvergesTo a L) : SeqBounded a"
+tactic_block = '''
+-- [S1]
+obtain ⟨N, hN⟩ := h 1 one_pos
+-- [S2]
+refine ⟨(∑ k ∈ Finset.range N, |a k|) + |L| + 1, fun n => ?_⟩
+have hsum : 0 ≤ ∑ k ∈ Finset.range N, |a k| :=
+  Finset.sum_nonneg (fun k _ => abs_nonneg (a k))
+have hL₀ := abs_nonneg L
+-- [S3]
+by_cases hn : n < N
+· have hk : |a n| ≤ ∑ k ∈ Finset.range N, |a k| :=
+    Finset.single_le_sum (f := fun k => |a k|) (fun k _ => abs_nonneg (a k))
+      (Finset.mem_range.mpr hn)
+  linarith
+· have h₁ := abs_lt.mp (hN n (not_lt.mp hn))
+  have hL₁ := le_abs_self L
+  have hL₂ := neg_abs_le L
+  rw [abs_le]
+  constructor <;> linarith [h₁.1, h₁.2]
+'''
+
+[[case]]
+id = "squeeze"
+topic = "sequences"
+problem = "Suppose a_n ≤ b_n ≤ c_n for all n, and a_n → L and c_n → L. Prove that b_n → L."
+steps = [
+  "Let ε > 0.",
+  "Choose N₁ with |a_n − L| < ε for n ≥ N₁, and N₂ with |c_n − L| < ε for n ≥ N₂.",
+  "For n ≥ max(N₁, N₂): L − ε < a_n ≤ b_n ≤ c_n < L + ε, so |b_n − L| < ε.",
+]
+statement = "(a b c : ℕ → ℝ) (L : ℝ) (hab : ∀ n, a n ≤ b n) (hbc : ∀ n, b n ≤ c n) (ha : SeqConvergesTo a L) (hc : SeqConvergesTo c L) : SeqConvergesTo b L"
+tactic_block = '''
+-- [S1]
+intro ε hε
+-- [S2]
+obtain ⟨N₁, hN₁⟩ := ha ε hε
+obtain ⟨N₂, hN₂⟩ := hc ε hε
+-- [S3]
+refine ⟨max N₁ N₂, fun n hn => ?_⟩
+have h₁ := abs_lt.mp (hN₁ n (le_of_max_le_left hn))
+have h₂ := abs_lt.mp (hN₂ n (le_of_max_le_right hn))
+have h₃ := hab n
+have h₄ := hbc n
+rw [abs_lt]
+constructor <;> linarith [h₁.1, h₁.2, h₂.1, h₂.2]
+'''
+
+[[case]]
+id = "constant_multiple"
+topic = "sequences"
+problem = "Suppose a_n → A and let c be a real number. Prove that c·a_n → c·A."
+steps = [
+  "Let ε > 0.",
+  "Choose N such that |a_n − A| < ε/(|c| + 1) for all n ≥ N.",
+  "Then for n ≥ N, |c·a_n − c·A| = |c|·|a_n − A| ≤ |c|·ε/(|c| + 1) < ε.",
+]
+statement = "(a : ℕ → ℝ) (A c : ℝ) (ha : SeqConvergesTo a A) : SeqConvergesTo (fun n => c * a n) (c * A)"
+tactic_block = '''
+-- [S1]
+intro ε hε
+-- [S2]
+have hc : 0 < |c| + 1 := by positivity
+obtain ⟨N, hN⟩ := ha (ε / (|c| + 1)) (div_pos hε hc)
+refine ⟨N, fun n hn => ?_⟩
+-- [S3]
+have h := hN n hn
+show |c * a n - c * A| < ε
+rw [← mul_sub, abs_mul]
+calc |c| * |a n - A| ≤ |c| * (ε / (|c| + 1)) :=
+      mul_le_mul_of_nonneg_left h.le (abs_nonneg c)
+  _ < (|c| + 1) * (ε / (|c| + 1)) :=
+      mul_lt_mul_of_pos_right (by linarith) (div_pos hε hc)
+  _ = ε := by field_simp
+'''
+
+[[case]]
+id = "convergent_implies_cauchy"
+topic = "sequences"
+problem = "Prove that every convergent sequence of real numbers is a Cauchy sequence."
+steps = [
+  "Let ε > 0.",
+  "Since a_n → L, choose N with |a_n − L| < ε/2 for all n ≥ N.",
+  "For m, n ≥ N: |a_m − a_n| ≤ |a_m − L| + |L − a_n| < ε/2 + ε/2 = ε.",
+]
+statement = "(a : ℕ → ℝ) (L : ℝ) (h : SeqConvergesTo a L) : SeqCauchy a"
+tactic_block = '''
+-- [S1]
+intro ε hε
+-- [S2]
+obtain ⟨N, hN⟩ := h (ε / 2) (half_pos hε)
+-- [S3]
+refine ⟨N, fun m hm n hn => ?_⟩
+have h₁ := abs_lt.mp (hN m hm)
+have h₂ := abs_lt.mp (hN n hn)
+rw [abs_lt]
+constructor <;> linarith [h₁.1, h₁.2, h₂.1, h₂.2]
+'''

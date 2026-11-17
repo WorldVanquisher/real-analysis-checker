@@ -61,14 +61,16 @@ def test_case_outcome(case, lean_runner):
 
 
 def test_statement_check_accepts_good_and_rejects_bad_statements(lean_runner):
-    good = assemble_statement_check("(a : ℕ → ℝ) (L : ℝ) : ∀ ε > 0, ∃ N : ℕ, ∀ n ≥ N, |a n - L| < ε")
+    good = assemble_statement_check("(a : ℕ → ℝ) (L : ℝ) (h : SeqConvergesTo a L) : SeqBounded a")
     run = lean_runner.run(good.source)
-    assert decide_statement_check(run=run, output=parse_lean_output(run.stdout, good.theorem_name)).ok
+    output = parse_lean_output(run.stdout, good.theorem_name)
+    assert decide_statement_check(assembled=good, run=run, output=output).ok
 
+    # Without autoImplicit false this unknown name would silently become a variable.
     bad = assemble_statement_check("(x : ℝ) : x = undefinedConstantXyz")
     run = lean_runner.run(bad.source)
-    check = decide_statement_check(run=run, output=parse_lean_output(run.stdout, bad.theorem_name))
-    assert not check.ok
+    output = parse_lean_output(run.stdout, bad.theorem_name)
+    assert not decide_statement_check(assembled=bad, run=run, output=output).ok
 
 
 def _lean_pids() -> set[int]:

@@ -72,17 +72,32 @@ Status legend: ✅ done · ⏳ next · ⬜ planned
   Docker). Errors reported on the theorem line itself (e.g. unsolved goals at
   `by`) need special handling in B6's locator.
 
-### ⏳ B3 — Student-friendly Lean definitions + reference cases
+### ✅ B3 — Student-friendly Lean definitions + reference cases
 
 * Files: `lean/RaChecker/Defs.lean` (sequence convergence, boundedness,
   Cauchy, …), `lean/RaChecker/Bridge.lean` (equivalence proofs to Mathlib),
-  `tests/fixtures/reference_proofs/*.lean` (hand-written proofs of 5–8 target
-  exercises, e.g. `1/n → 0`, sum of limits, uniqueness of limits, convergent ⇒
-  bounded, squeeze theorem).
+  `tests/fixtures/reference_cases.toml` (hand-written, tagged formalizations of
+  target exercises), `tests/unit/test_reference_cases.py`,
+  `tests/lean/test_reference_cases_lean.py`, `.gitattributes`.
 * Accept: all bridge lemmas and reference proofs compile with no `sorry` and
   only standard axioms, via the B2 runner.
+* Result: five definitions (`SeqConvergesTo`, `SeqConverges`, `SeqBounded`,
+  `SeqCauchy`, `SeqTendsToInfinity`), each with a bridge lemma to Mathlib, all
+  built by `lake build` with no `sorry`. Eight reference exercises — constant
+  sequence, `1/(n+1) → 0`, sum of limits, uniqueness of limits, convergent ⇒
+  bounded, squeeze theorem, constant multiple, convergent ⇒ Cauchy — each
+  `VERIFIED` through the app's own assemble → run → parse → verdict path with
+  no diagnostics at all. Assembled files now `import RaChecker` and
+  `open RaChecker`; an error on a header line is classified `RUNTIME_ERROR`
+  ("environment not set up, run `lake build`"), never as a proof error.
+  178 unit tests and 21 real-Lean tests pass; a check still takes about 23 s.
+* Limitations: Lean warns that `Mathlib` "is designed for use with the module
+  system"; harmless, adopting Lean's module system is not needed yet. The
+  reference proofs prefer `abs_lt` + `linarith` to named triangle-inequality
+  lemmas, whose names change between Mathlib versions — a useful hint for the
+  B5 prompts. Only sequences are covered so far.
 
-### ⬜ B4 — LLM client + problem parsing
+### ⏳ B4 — LLM client + problem parsing
 
 * Adds dependency: `anthropic`.
 * Files: `src/ra_checker/llm/{client,prompts}`, `src/ra_checker/input/`,

@@ -1,2 +1,2 @@
-/tmp/ra_checker/Check.lean:7:12: error: unexpected token '#print'; expected ')', ',' or ':'
+/tmp/ra_checker/Check.lean:9:12: error: unexpected token '#print'; expected ')', ',' or ':'
 'student_claim' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]

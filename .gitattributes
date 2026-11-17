@@ -1,0 +1,3 @@
+# Keep LF everywhere: Lean sources and captured Lean output fixtures must not
+# be rewritten with CRLF on Windows checkouts.
+* text=auto eol=lf

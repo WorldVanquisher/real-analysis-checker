@@ -16,8 +16,10 @@ STATEMENT = "(a : ℕ → ℝ) (h : ∀ n, a n = 1) : a 3 = 1"
 def test_proof_file_layout_and_line_numbers():
     f = assemble_proof(STATEMENT, "-- [S1]\nexact h 3")
     lines = f.source.split("\n")
-    assert lines[0] == "import Mathlib"
-    assert "set_option autoImplicit false" in lines[: f.statement_line]
+    assert lines[:2] == ["import Mathlib", "import RaChecker"]
+    header = lines[: f.statement_line - 1]
+    assert "open RaChecker" in header
+    assert "set_option autoImplicit false" in header
     assert lines[f.statement_line - 1] == f"theorem {THEOREM_NAME} {STATEMENT} := by"
     assert lines[f.proof_first_line - 1] == "  -- [S1]"
     assert lines[f.proof_first_line] == "  exact h 3"

@@ -26,8 +26,8 @@ def output(*diagnostics: Diagnostic, axioms=STANDARD, uses_sorry=False) -> LeanO
     return LeanOutput(tuple(diagnostics), axioms, uses_sorry, "")
 
 
-def error(msg="unsolved goals") -> Diagnostic:
-    return Diagnostic(line=4, column=2, severity=Severity.ERROR, message=msg)
+def error(msg="unsolved goals", line=ASSEMBLED.proof_first_line) -> Diagnostic:
+    return Diagnostic(line=line, column=2, severity=Severity.ERROR, message=msg)
 
 
 def decide(r=None, o=None, statement=STATEMENT):
@@ -79,6 +79,14 @@ def test_errors_win_even_if_exit_code_is_zero():
     assert decide(o=output(error())).status is VerificationStatus.VERIFICATION_FAILED
 
 
+def test_header_errors_are_environment_problems_not_proof_errors():
+    unbuilt = error("unknown module prefix 'RaChecker'", line=2)
+    v = decide(run(exit_code=1), output(unbuilt, axioms=None))
+    assert v.status is VerificationStatus.RUNTIME_ERROR
+    assert "environment is not set up" in v.reasons[0]
+    assert "lake build" in v.reasons[0]
+
+
 def test_statement_must_match_byte_for_byte():
     v = decide(statement=STATEMENT + " ")
     assert v.status is VerificationStatus.TRANSLATION_FAILED
@@ -92,18 +100,18 @@ def test_run_of_a_different_file_is_a_programming_error():
 
 def test_statement_check():
     check_file = assemble_statement_check(STATEMENT)
-    ok = decide_statement_check(
-        run=LeanRun(source=check_file.source, exit_code=0, duration_s=1.0),
-        output=output(axioms=None, uses_sorry=True),
-    )
-    assert ok.ok
-    bad = decide_statement_check(
-        run=LeanRun(source=check_file.source, exit_code=1, duration_s=1.0),
-        output=output(error("unknown identifier 'Foo'"), axioms=None),
+
+    def check(o, **run_fields):
+        fields = dict(source=check_file.source, exit_code=0, duration_s=1.0)
+        fields.update(run_fields)
+        return decide_statement_check(assembled=check_file, run=LeanRun(**fields), output=o)
+
+    assert check(output(axioms=None, uses_sorry=True)).ok
+    bad = check(
+        output(error("unknown identifier 'Foo'", line=check_file.statement_line), axioms=None),
+        exit_code=1,
     )
     assert not bad.ok and "unknown identifier" in bad.reasons[0]
-    slow = decide_statement_check(
-        run=LeanRun(source=check_file.source, exit_code=None, timed_out=True, duration_s=9.0),
-        output=output(axioms=None),
-    )
-    assert not slow.ok
+    assert not check(output(axioms=None), exit_code=None, timed_out=True).ok
+    broken = check(output(error("unknown module prefix", line=1), axioms=None), exit_code=1)
+    assert not broken.ok and "environment" in broken.reasons[0]

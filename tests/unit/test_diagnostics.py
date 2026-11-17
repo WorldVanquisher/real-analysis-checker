@@ -33,11 +33,11 @@ def test_clean_runs(name):
 @pytest.mark.parametrize(
     "name, line, column, message, goal_fragment",
     [
-        ("unsolved_goals", 5, 57, "unsolved goals", "⊢ x < x + 1"),
-        ("linarith_failed", 7, 2, "linarith failed to find a contradiction", "⊢ False"),
-        ("type_mismatch", 7, 2, "Type mismatch\n  hx\nhas type", None),
-        ("unknown_identifier", 7, 8, "Unknown identifier `pow_pos_of_made_up_lemma`", None),
-        ("syntax_error", 7, 12, "unexpected token '#print'", None),
+        ("unsolved_goals", 7, 57, "unsolved goals", "⊢ x < x + 1"),
+        ("linarith_failed", 9, 2, "linarith failed to find a contradiction", "⊢ False"),
+        ("type_mismatch", 9, 2, "Type mismatch\n  hx\nhas type", None),
+        ("unknown_identifier", 9, 8, "Unknown identifier `pow_pos_of_made_up_lemma`", None),
+        ("syntax_error", 9, 12, "unexpected token '#print'", None),
     ],
 )
 def test_single_error_cases(name, line, column, message, goal_fragment):

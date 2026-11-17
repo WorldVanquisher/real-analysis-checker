@@ -5,10 +5,11 @@ A student types a problem and their proof; the app formalizes both in
 **Lean 4 + Mathlib**, runs the real Lean checker, and explains where and why
 verification failed — in language a beginner can follow.
 
-> **Status: Milestone B2 done — real Lean verification works** (file
-> assembly, safety screen, runner, output parsing, verdict rules). There is no
-> LLM translation or user interface yet. Next up is B3 (student-friendly Lean
-> definitions); see [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
+> **Status: Milestone B3 done — real Lean verification works**, with
+> student-friendly ε–N definitions (each proven equivalent to Mathlib) and 8
+> Lean-verified reference exercises. There is no LLM translation or user
+> interface yet. Next up is B4 (LLM client and problem parsing); see
+> [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## How it will work
 
@@ -86,8 +87,9 @@ Lean `v4.36.0` with Mathlib `v4.36.0`.
 
    Open a new terminal afterwards so `lake` is on your PATH.
 
-2. **Download Mathlib and its prebuilt cache** (several GB; the right Lean
-   toolchain is installed automatically):
+2. **Download Mathlib and its prebuilt cache, then build the checker's own
+   Lean library** (several GB, about 12 minutes on a home connection; the right
+   Lean toolchain is installed automatically):
 
    ```bash
    cd lean
@@ -96,7 +98,7 @@ Lean `v4.36.0` with Mathlib `v4.36.0`.
    ```
 
 3. **Check the installation** by running the real-Lean tests from the project
-   root (about 6 minutes; each check loads Mathlib, about 23 s on a typical
+   root (about 9 minutes; each check loads Mathlib, about 23 s on a typical
    Windows laptop):
 
    ```bash
