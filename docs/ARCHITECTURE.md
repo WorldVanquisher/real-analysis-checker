@@ -271,11 +271,23 @@ development machine).
    * `origin` — `student_reasoning`, `formalization`, or `undetermined`;
    * `confidence` — `high` / `medium` / `low`;
    * `explanation`, `correction_direction`.
-4. **Guardrails (code).** `syntax` and `unknown_identifier` errors are forced to
-   `origin = formalization` — they are Lean-side problems, not mathematics.
-   `low` confidence or `undetermined` origin is rendered as *"We cannot
-   confidently identify the mathematical error."* The raw Lean message is always
-   shown next to the explanation.
+4. **Guardrails (code, `analysis/explain.py`).** `syntax` and
+   `unknown_identifier` errors are forced to `origin = formalization` and get a
+   fixed explanation without an LLM call — they are Lean-side problems, not
+   mathematics. Errors inside translator-added `A` steps are formalization
+   errors. A self-contradictory answer (student origin, Lean category) becomes
+   `undetermined`/`low`; a `formalization` origin cannot carry a student
+   category; high-confidence blame on a step the translator `changed` or
+   `omitted` drops to `medium`. If the LLM is unavailable the rule-based
+   fallback is `undetermined`/`low`. `ErrorAnalysis.confident` is false for
+   `low` confidence or `undetermined` origin, and the UI then says *"We cannot
+   confidently identify the mathematical error."* The raw Lean message is
+   always shown next to the explanation. At most three errors per check are
+   analysed.
+
+Errors that Lean reports on the theorem line (notably "unsolved goals" at
+`by`, when the proof ends with something left to prove) are attributed to the
+last step with `at_end_of_proof`, and the open goal is shown to the explainer.
 
 ## 9. LLM layer
 

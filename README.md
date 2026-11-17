@@ -10,8 +10,10 @@ verification failed — in language a beginner can follow.
 > (each proven equivalent to Mathlib), 8 Lean-verified reference exercises, and
 > the LLM stages (reading the problem, formalizing the statement, translating
 > the proof with a strictly bounded repair loop) are built and tested with a
-> stand-in LLM against real Lean. Live LLM checks are waiting for an API key.
-> There is no user interface yet. Next up is B6 (error analysis); see
+> stand-in LLM against real Lean, as is error analysis (locating a Lean error
+> to the student's step and explaining it with guardrails). Live LLM checks are
+> waiting for an API key. There is no user interface yet. Next up is B7 (the
+> pipeline and the Streamlit app); see
 > [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## How it will work

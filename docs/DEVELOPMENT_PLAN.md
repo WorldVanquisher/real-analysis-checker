@@ -158,15 +158,33 @@ Status legend: ✅ done · 🟡 built, a live check is still pending · ⏳ next
   tests to be added with B7's end-to-end run). Not yet done: a vacuity check
   that the formal hypotheses are not contradictory.
 
-### ⏳ B6 — Error analysis
+### 🟡 B6 — Error analysis
 
-* Files: `src/ra_checker/analysis/{classify,locate,explain}.py`, tests with
-  captured Lean output.
+* Files: `src/ra_checker/analysis/{classify,locate,explain}.py`, explanation
+  prompt in `llm/prompts.py`, `tests/unit/test_error_analysis.py`,
+  `tests/lean/test_error_analysis_lean.py`.
 * Accept: classifier covers the fixture messages; locator maps every fixture
   error to the right step; guardrails force `origin=formalization` for syntax /
   unknown identifier; low confidence renders as "cannot confidently identify".
+* Result: 274 unit tests and 2 new real-Lean tests pass. The locator scans the
+  assembled file's tags, so it uses exactly the code Lean checked; errors Lean
+  reports on the theorem line ("unsolved goals" at `by`) are attributed to the
+  last step with `at_end_of_proof`. Syntax errors and unknown names get a fixed
+  "problem with the translation, not with your mathematics" explanation and no
+  LLM call. Otherwise the LLM proposes category, origin, confidence,
+  explanation and a hint, and guardrails correct it: errors in translator-added
+  steps are formalization errors; a self-contradictory answer becomes
+  `undetermined`/`low`; a `formalization` origin cannot carry a student
+  category; a high-confidence blame on a step the translator `changed` or
+  `omitted` drops to `medium`. If the LLM is unavailable, an honest rule-based
+  `undetermined`/`low` explanation is used. `ErrorAnalysis.confident` tells the
+  UI when to say the cause could not be confidently identified (rendering is
+  B7). At most 3 errors per check are analysed. Real Lean: the
+  ε-instead-of-ε/2 mistake is located at S5 (the final estimate); an open goal
+  at the end of a proof is attributed to the last step with the goal passed on.
+* Pending: explanation quality against the real model (API key).
 
-### ⬜ B7 — Pipeline + Streamlit UI
+### ⏳ B7 — Pipeline + Streamlit UI
 
 * Adds dependency: `streamlit`.
 * Files: `src/ra_checker/pipeline.py`, `src/ra_checker/ui/{app,components}.py`,

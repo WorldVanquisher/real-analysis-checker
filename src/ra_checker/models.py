@@ -279,8 +279,13 @@ class ErrorAnalysis(_Model):
     raw_message: NonBlankStr
     explanation: NonBlankStr
     step_id: StepId | None = None
-    line: int | None = Field(default=None, ge=1)
+    line: int | None = Field(default=None, ge=1)  # line within the tactic block
     correction_direction: str | None = None
+
+    @property
+    def confident(self) -> bool:
+        """False → the UI must say the cause could not be confidently identified."""
+        return self.confidence is not Confidence.LOW and self.origin is not ErrorOrigin.UNDETERMINED
 
 
 # ------------------------------------------------------------------------- report

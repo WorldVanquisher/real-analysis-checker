@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 TRANSLATE_TASK = "translate_proof"
 REPAIR_PROOF_TASK = "repair_proof"
 MAX_PROOF_REPAIRS = 2
-_TAG_LINE_RE = re.compile(r"^\s*--\s*\[([SA][1-9][0-9]*)\]\s*$")
+TAG_LINE_RE = re.compile(r"^\s*--\s*\[([SA][1-9][0-9]*)\]\s*$")
 
 
 class StepEntry(BaseModel):
@@ -116,7 +116,7 @@ def split_tags(block: str, student_ids: list[str]) -> TaggedBlock:
     current: str | None = None
     leading: list[str] = []
     for line in lines:
-        if match := _TAG_LINE_RE.match(line):
+        if match := TAG_LINE_RE.match(line):
             current = match.group(1)
             tags.append(current)
             segments.setdefault(current, [])
