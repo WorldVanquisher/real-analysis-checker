@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environments and secrets
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Lean build output and scratch files
+lean/.lake/
+lean/build/
+.scratch/
+
+# Logs and local outputs
+logs/
+*.log
+eval/results/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
