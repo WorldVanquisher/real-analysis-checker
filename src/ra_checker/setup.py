@@ -4,6 +4,7 @@ Shared by the Streamlit app and the evaluation command line."""
 from __future__ import annotations
 
 from ra_checker.config import ConfigError, Settings, load_settings
+from ra_checker.lean.repl import ReplLeanRunner, find_repl
 from ra_checker.lean.runner import LeanUnavailableError, SubprocessLeanRunner
 from ra_checker.lean.warmup import WarmingLeanRunner
 from ra_checker.llm.client import AnthropicClient, LLMUnavailableError
@@ -26,7 +27,7 @@ def build_checker(settings: Settings | None = None) -> tuple[Checker | None, lis
     except LLMUnavailableError as exc:
         problems.append(f"The LLM is not available: {exc}")
     try:
-        subprocess_runner = SubprocessLeanRunner(settings.lean_project_dir, settings.lean_timeout_s)
+        runner = choose_lean_runner(settings)
     except LeanUnavailableError as exc:
         problems.append(str(exc))
     else:
@@ -37,7 +38,23 @@ def build_checker(settings: Settings | None = None) -> tuple[Checker | None, lis
                 "`lake build` in the lean/ folder (see the README)."
             )
         # Start loading Mathlib now: the first run after a restart can take minutes.
-        lean = WarmingLeanRunner(subprocess_runner, start=lean_ready and not problems)
+        lean = WarmingLeanRunner(runner, start=lean_ready and not problems)
     if problems or llm is None or lean is None:
         return None, problems
     return Checker(llm, lean), []
+
+
+def choose_lean_runner(settings: Settings) -> SubprocessLeanRunner | ReplLeanRunner:
+    """RA_LEAN_RUNNER: ``auto`` uses the REPL when it is built, ``repl`` requires
+    it, ``cli`` always starts Lean per check. Raises LeanUnavailableError."""
+    cli = SubprocessLeanRunner(settings.lean_project_dir, settings.lean_timeout_s)
+    if settings.lean_runner == "cli":
+        return cli
+    if find_repl(settings.lean_project_dir) is None:
+        if settings.lean_runner == "repl":
+            raise LeanUnavailableError(
+                "RA_LEAN_RUNNER=repl, but the Lean REPL is not built: run `lake build repl` "
+                "in the lean/ folder."
+            )
+        return cli
+    return ReplLeanRunner(settings.lean_project_dir, settings.lean_timeout_s, fallback=cli)

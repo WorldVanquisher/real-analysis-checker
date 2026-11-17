@@ -1,0 +1,123 @@
+{
+  "description": "Lean files checked in the first live evaluation (2026-11-17, claude-opus-5-5, Lean/Mathlib v4.36.0) with the command-line runner's verdicts. Used to show the REPL runner gives the same results.",
+  "cases": [
+    {
+      "case_id": "correct_sum_of_limits",
+      "statement": "(a b : ℕ → ℝ) (A B : ℝ) (ha : SeqConvergesTo a A) (hb : SeqConvergesTo b B) : SeqConvergesTo (fun n => a n + b n) (A + B)",
+      "tactic_block": "-- [S1]\nintro ε hε\n-- [A1]\nhave hε2 : (0:ℝ) < ε / 2 := half_pos hε\n-- [S2]\nobtain ⟨N₁, hN₁⟩ := ha (ε / 2) hε2\n-- [S3]\nobtain ⟨N₂, hN₂⟩ := hb (ε / 2) hε2\n-- [S4]\nrefine ⟨max N₁ N₂, fun n hn => ?_⟩\n-- [S5]\nshow |a n + b n - (A + B)| < ε\nhave h1 := hN₁ n (le_of_max_le_left hn)\nhave h2 := hN₂ n (le_of_max_le_right hn)\nhave e : a n + b n - (A + B) = (a n - A) + (b n - B) := by ring\nhave tri : |a n + b n - (A + B)| ≤ |a n - A| + |b n - B| := by\n  rw [e]\n  first\n  | exact abs_add_le _ _\n  | exact abs_add _ _\nlinarith",
+      "cli_status": "verified",
+      "cli_error_lines": []
+    },
+    {
+      "case_id": "correct_squeeze",
+      "statement": "(a b c : ℕ → ℝ) (L : ℝ) (hab : ∀ n, a n ≤ b n) (hbc : ∀ n, b n ≤ c n) (ha : SeqConvergesTo a L) (hc : SeqConvergesTo c L) : SeqConvergesTo b L",
+      "tactic_block": "-- [S1]\nintro ε hε\n-- [S2]\nobtain ⟨N₁, hN₁⟩ := ha ε hε\nobtain ⟨N₂, hN₂⟩ := hc ε hε\n-- [S3]\nrefine ⟨max N₁ N₂, fun n hn => ?_⟩\nhave h1 := hN₁ n (le_of_max_le_left hn)\nhave h2 := hN₂ n (le_of_max_le_right hn)\nhave hb1 := hab n\nhave hb2 := hbc n\nobtain ⟨h1l, h1r⟩ := abs_lt.mp h1\nobtain ⟨h2l, h2r⟩ := abs_lt.mp h2\nrw [abs_lt]\nconstructor <;> linarith",
+      "cli_status": "verified",
+      "cli_error_lines": []
+    },
+    {
+      "case_id": "correct_constant_multiple",
+      "statement": "(a : ℕ → ℝ) (A : ℝ) (c : ℝ) (ha : SeqConvergesTo a A) : SeqConvergesTo (fun n => c * a n) (c * A)",
+      "tactic_block": "-- [S1]\nintro ε hε\n-- [A1]\nhave hc : 0 < |c| + 1 := by positivity\nhave hδ : 0 < ε / (|c| + 1) := div_pos hε hc\n-- [S2]\nobtain ⟨N, hN⟩ := ha (ε / (|c| + 1)) hδ\n-- [S3]\nrefine ⟨N, fun n hn => ?_⟩\nshow |c * a n - c * A| < ε\nhave hn' := hN n hn\nhave e : c * a n - c * A = c * (a n - A) := by ring\nrw [e, abs_mul]\nhave h1 : |c| * |a n - A| ≤ |c| * (ε / (|c| + 1)) :=\n  mul_le_mul_of_nonneg_left (le_of_lt hn') (abs_nonneg c)\nhave hδeq : ε / (|c| + 1) * (|c| + 1) = ε := by\n  field_simp\nhave h3 : |c| * (ε / (|c| + 1)) = ε - ε / (|c| + 1) := by\n  linear_combination hδeq\nhave h2 : |c| * (ε / (|c| + 1)) < ε := by\n  rw [h3]\n  linarith\nexact lt_of_le_of_lt h1 h2",
+      "cli_status": "verified",
+      "cli_error_lines": []
+    },
+    {
+      "case_id": "incorrect_epsilon_not_halved",
+      "statement": "(a b : ℕ → ℝ) (A B : ℝ) (ha : SeqConvergesTo a A) (hb : SeqConvergesTo b B) : SeqConvergesTo (fun n => a n + b n) (A + B)",
+      "tactic_block": "-- [S1]\nintro ε hε\n-- [S2]\nobtain ⟨N₁, hN₁⟩ := ha ε hε\n-- [S3]\nobtain ⟨N₂, hN₂⟩ := hb ε hε\n-- [S4]\nrefine ⟨max N₁ N₂, fun n hn => ?_⟩\n-- [S5]\nshow |a n + b n - (A + B)| < ε\nhave h1 := hN₁ n (le_of_max_le_left hn)\nhave h2 := hN₂ n (le_of_max_le_right hn)\nhave htri : |a n + b n - (A + B)| ≤ |a n - A| + |b n - B| := by\n  have e : a n + b n - (A + B) = (a n - A) + (b n - B) := by ring\n  rw [e]\n  first\n  | exact abs_add_le _ _\n  | exact abs_add _ _\nlinarith",
+      "cli_status": "verification_failed",
+      "cli_error_lines": [
+        26
+      ]
+    },
+    {
+      "case_id": "incorrect_wrong_N",
+      "statement": ": SeqConvergesTo (fun n : ℕ => 1 / ((n : ℝ) + 1)) 0",
+      "tactic_block": "-- [S1]\nintro ε hε\n-- [S2]\nobtain ⟨N, hN⟩ := exists_nat_gt ε\n-- [A1]\nhave hNpos : (0:ℝ) < (N:ℝ) := by linarith\n-- [S3]\nrefine ⟨N, fun n hn => ?_⟩\nshow |1 / ((n:ℝ) + 1) - 0| < ε\nhave hnN : (N:ℝ) ≤ (n:ℝ) := by exact_mod_cast hn\nhave h1 : 1 / ((n:ℝ) + 1) < 1 / (N:ℝ) := one_div_lt_one_div_of_lt hNpos (by linarith)\nhave h2 : 1 / (N:ℝ) < ε := by\n  rw [div_lt_iff₀ hNpos]\n  nlinarith\nrw [sub_zero, abs_of_pos (by positivity)]\nlinarith",
+      "cli_status": "verification_failed",
+      "cli_error_lines": [
+        21
+      ]
+    },
+    {
+      "case_id": "incorrect_triangle_direction",
+      "statement": "(a : ℕ → ℝ) (L : ℝ) (ha : SeqConvergesTo a L) : SeqConvergesTo (fun n => |a n|) |L|",
+      "tactic_block": "-- [S1]\nintro ε hε\n-- [S2]\nobtain ⟨N, hN⟩ := ha ε hε\n-- [S3]\nrefine ⟨N, fun n hn => ?_⟩\nshow |(|a n| - |L|)| < ε\nhave h1 : |(|a n| - |L|)| ≥ |a n - L| := by\n  linarith [abs_abs_sub_abs_le_abs_sub (a n) L]\nhave h2 : |a n - L| < ε := hN n hn\nlinarith [h1, h2]",
+      "cli_status": "verification_failed",
+      "cli_error_lines": [
+        16,
+        18
+      ]
+    },
+    {
+      "case_id": "incomplete_bounded_tail_only",
+      "statement": "(a : ℕ → ℝ) (ha : SeqConverges a) : SeqBounded a",
+      "tactic_block": "-- [S1]\nobtain ⟨L, hL⟩ := ha\n-- [S2]\nobtain ⟨N, hN⟩ := hL 1 (by norm_num)\n-- [S3]\nhave h3 : ∀ n ≥ N, |a n| < |L| + 1 := by\n  intro n hn\n  have h1 := hN n hn\n  have h2 := abs_sub_abs_le_abs_sub (a n) L\n  linarith\n-- [A1]\nshow ∃ M : ℝ, ∀ n : ℕ, |a n| ≤ M\n-- [S4]\nrefine ⟨|L| + 1, fun n => ?_⟩\nexact le_of_lt (h3 n (by omega))",
+      "cli_status": "verification_failed",
+      "cli_error_lines": [
+        22
+      ]
+    },
+    {
+      "case_id": "incomplete_cauchy_no_estimate",
+      "statement": "(a : ℕ → ℝ) (ha : SeqConverges a) : SeqCauchy a",
+      "tactic_block": "-- [A1]\nobtain ⟨L, hL⟩ := ha\n-- [S1]\nintro ε hε\n-- [A2]\nhave hε2 : ε / 2 > 0 := half_pos hε\n-- [S2]\nobtain ⟨N, hN⟩ := hL (ε / 2) hε2\n-- [S3]\nrefine ⟨N, fun m hm n hn => ?_⟩\nhave h1 := hN m hm\nhave h2 := hN n hn\nlinarith",
+      "cli_status": "verification_failed",
+      "cli_error_lines": [
+        20
+      ]
+    },
+    {
+      "case_id": "incomplete_squeeze_one_side",
+      "statement": "(a b c : ℕ → ℝ) (L : ℝ) (hab : ∀ n, a n ≤ b n) (hbc : ∀ n, b n ≤ c n) (ha : SeqConvergesTo a L) (hc : SeqConvergesTo c L) : SeqConvergesTo b L",
+      "tactic_block": "-- [S1]\nintro ε hε\n-- [S2]\nobtain ⟨N, hN⟩ := hc ε hε\n-- [S3]\nrefine ⟨N, fun n hn => ?_⟩\nhave h1 := hN n hn\nhave h2 := hbc n\nhave h3 : b n < L + ε := by\n  have := (abs_lt.mp h1).2\n  linarith\nrw [abs_lt]\nconstructor <;> linarith",
+      "cli_status": "verification_failed",
+      "cli_error_lines": [
+        20
+      ]
+    },
+    {
+      "case_id": "hard_monotone_convergence_citation",
+      "statement": "(a : ℕ → ℝ) (h_inc : ∀ n : ℕ, a n ≤ a (n + 1)) (h_bdd : ∃ M : ℝ, ∀ n : ℕ, a n ≤ M) : SeqConverges a",
+      "tactic_block": "-- [A1]\nobtain ⟨M, hM⟩ := h_bdd\nhave hmono : Monotone a := monotone_nat_of_le_succ h_inc\nhave hbdd : BddAbove (Set.range a) := ⟨M, by rintro _ ⟨n, rfl⟩; exact hM n⟩\n-- [S1]\nhave ht := tendsto_atTop_ciSup hmono hbdd\nrefine ⟨⨆ i, a i, ?_⟩\nrw [seqConvergesTo_iff_tendsto]\nexact ht",
+      "cli_status": "verified",
+      "cli_error_lines": []
+    },
+    {
+      "case_id": "hard_sqrt_difference",
+      "statement": ": SeqConvergesTo (fun n : ℕ => Real.sqrt ((n : ℝ) + 1) - Real.sqrt (n : ℝ)) 0",
+      "tactic_block": "-- [S1]\nhave key : ∀ n : ℕ, 0 < n → (Real.sqrt ((n:ℝ)+1) - Real.sqrt (n:ℝ) = 1 / (Real.sqrt ((n:ℝ)+1) + Real.sqrt (n:ℝ)) ∧ 1 / (Real.sqrt ((n:ℝ)+1) + Real.sqrt (n:ℝ)) ≤ 1 / Real.sqrt (n:ℝ)) := by\n  intro n hn\n  have hn' : (0:ℝ) < (n:ℝ) := by exact_mod_cast hn\n  have h1 : 0 < Real.sqrt (n:ℝ) := Real.sqrt_pos.mpr hn'\n  have h2 : 0 ≤ Real.sqrt ((n:ℝ)+1) := Real.sqrt_nonneg _\n  have s1 : Real.sqrt ((n:ℝ)+1) ^ 2 = (n:ℝ)+1 := Real.sq_sqrt (by positivity)\n  have s2 : Real.sqrt (n:ℝ) ^ 2 = (n:ℝ) := Real.sq_sqrt (by positivity)\n  constructor\n  · rw [eq_div_iff (by positivity)]\n    linear_combination s1 - s2\n  · apply one_div_le_one_div_of_le h1\n    linarith\n-- [S2]\nintro ε hε\nobtain ⟨N, hN⟩ := exists_nat_gt (1 / ε ^ 2)\n-- [A1]\nhave hε0 : ε ≠ 0 := hε.ne'\nhave hNpos : (0:ℝ) < (N:ℝ) := lt_trans (div_pos one_pos (pow_pos hε 2)) hN\nhave hN0 : 0 < N := by exact_mod_cast hNpos\n-- [S3]\nrefine ⟨N, fun n hn => ?_⟩\nshow |Real.sqrt ((n:ℝ)+1) - Real.sqrt (n:ℝ) - 0| < ε\nhave hn0 : 0 < n := lt_of_lt_of_le hN0 hn\nhave hNn : (N:ℝ) ≤ (n:ℝ) := by exact_mod_cast hn\nobtain ⟨heq, hle⟩ := key n hn0\nhave hs : 0 < Real.sqrt (N:ℝ) := Real.sqrt_pos.mpr hNpos\nhave hs' : Real.sqrt (N:ℝ) ≠ 0 := hs.ne'\nhave hmono : 1 / Real.sqrt (n:ℝ) ≤ 1 / Real.sqrt (N:ℝ) := one_div_le_one_div_of_le hs (Real.sqrt_le_sqrt hNn)\nhave hsq : Real.sqrt (N:ℝ) ^ 2 = (N:ℝ) := Real.sq_sqrt hNpos.le\nhave h3 : 1 < ε ^ 2 * (N:ℝ) := by\n  have e : ε ^ 2 * (1 / ε ^ 2) = 1 := by field_simp\n  have := mul_lt_mul_of_pos_left hN (pow_pos hε 2)\n  linarith\nhave htpos : 0 < ε * Real.sqrt (N:ℝ) := mul_pos hε hs\nhave ht2 : (ε * Real.sqrt (N:ℝ)) ^ 2 = ε ^ 2 * (N:ℝ) := by rw [mul_pow, hsq]\nhave h4 : 1 < ε * Real.sqrt (N:ℝ) := by nlinarith [ht2, h3, htpos]\nhave hu : 1 / Real.sqrt (N:ℝ) * Real.sqrt (N:ℝ) = 1 := by field_simp\nhave h5 : 1 / Real.sqrt (N:ℝ) < ε := by nlinarith [hu, h4, hs]\nhave hpos : 0 < Real.sqrt ((n:ℝ)+1) - Real.sqrt (n:ℝ) := by\n  rw [heq]\n  positivity\nrw [sub_zero, abs_of_pos hpos]\nlinarith [heq, hle, hmono, h5]",
+      "cli_status": "verified",
+      "cli_error_lines": []
+    },
+    {
+      "case_id": "hard_geometric",
+      "statement": ": SeqConvergesTo (fun n : ℕ => ((1:ℝ)/2)^n) 0",
+      "tactic_block": "-- [S1]\nhave h2 : ∀ n : ℕ, (n:ℝ) + 1 ≤ (2:ℝ)^n := by\n  intro n\n  induction n with\n  | zero => norm_num\n  | succ k ih =>\n    push_cast\n    rw [pow_succ]\n    nlinarith [pow_pos (by norm_num : (0:ℝ) < 2) k, (Nat.cast_nonneg k : (0:ℝ) ≤ k)]\nhave hpos : ∀ n : ℕ, 0 < ((1:ℝ)/2)^n := fun n => by positivity\nhave hbound : ∀ n : ℕ, ((1:ℝ)/2)^n ≤ 1/((n:ℝ)+1) := by\n  intro n\n  rw [div_pow, one_pow]\n  exact one_div_le_one_div_of_le (by positivity) (h2 n)\nhave hlim : SeqConvergesTo (fun n : ℕ => 1/((n:ℝ)+1)) 0 := by\n  rw [seqConvergesTo_iff_tendsto]\n  exact tendsto_one_div_add_atTop_nhds_zero_nat\n-- [S2]\nrw [seqConvergesTo_iff_tendsto] at hlim ⊢\nexact squeeze_zero (fun n => (hpos n).le) hbound hlim",
+      "cli_status": "verified",
+      "cli_error_lines": []
+    },
+    {
+      "case_id": "mistranslation_index_from_one",
+      "statement": "(a : ℕ → ℝ) (ha : ∀ n : ℕ, n ≥ 1 → a n = 1 / (n : ℝ)) : SeqConvergesTo a 0",
+      "tactic_block": "-- [S1]\nintro ε hε\nobtain ⟨N, hN⟩ := exists_nat_gt (1 / ε)\nrefine ⟨N, fun n hn => ?_⟩\n-- [A1]\nhave h1e : 0 < 1 / ε := one_div_pos.mpr hε\nhave hNpos : (0:ℝ) < (N:ℝ) := lt_trans h1e hN\nhave hnN : (N:ℝ) ≤ (n:ℝ) := by exact_mod_cast hn\nhave hnpos : (0:ℝ) < (n:ℝ) := lt_of_lt_of_le hNpos hnN\nhave hn1 : n ≥ 1 := by\n  have : 0 < n := by exact_mod_cast hnpos\n  omega\nrw [ha n hn1]\n-- [S2]\nhave h0 : 0 < 1 / (n:ℝ) := one_div_pos.mpr hnpos\nhave h2 : 1 / (n:ℝ) ≤ 1 / (N:ℝ) := one_div_le_one_div_of_le hNpos hnN\nhave e : 1 / ε * ε = 1 := by field_simp\nhave h4 : 1 < (N:ℝ) * ε := by\n  have := mul_lt_mul_of_pos_right hN hε\n  rw [e] at this\n  linarith\nhave h5 : 1 / (N:ℝ) * (N:ℝ) = 1 := by field_simp\nhave h3 : 1 / (N:ℝ) < ε := by nlinarith [h5, h4, hNpos]\nrw [sub_zero, abs_of_pos h0]\nlinarith",
+      "cli_status": "verified",
+      "cli_error_lines": []
+    },
+    {
+      "case_id": "mistranslation_quantifier_order",
+      "statement": "(a : ℕ → ℝ) (ha : SeqConverges a) : ∃ M : ℝ, ∀ n : ℕ, |a n| ≤ M",
+      "tactic_block": "-- [S1]\nobtain ⟨L, hL⟩ := ha\n-- [S2]\nobtain ⟨N, hN⟩ := hL 1 (by norm_num)\n-- [S3]\nrefine ⟨(Finset.range N).fold max (|L| + 1) (fun i => |a i|), fun n => ?_⟩\n-- [S4]\nrw [Finset.le_fold_max]\nby_cases h : n < N\n· right\n  exact ⟨n, Finset.mem_range.mpr h, le_rfl⟩\n· left\n  have h1 := hN n (by omega)\n  rw [abs_lt] at h1\n  have h3 := neg_abs_le L\n  have h4 := le_abs_self L\n  rw [abs_le]\n  constructor <;> linarith",
+      "cli_status": "verified",
+      "cli_error_lines": []
+    },
+    {
+      "case_id": "mistranslation_strict_inequality",
+      "statement": "(a : ℕ → ℝ) (L : ℝ) (ha : SeqConvergesTo a L) (hlt : ∀ n : ℕ, a n < 1) : L ≤ 1",
+      "tactic_block": "-- [S1]\nby_contra h\npush_neg at h\n-- [A1]\nhave hε : (0:ℝ) < L - 1 := by linarith\n-- [S2]\nobtain ⟨N, hN⟩ := ha (L - 1) hε\nhave h1 := hN N le_rfl\nrw [abs_lt] at h1\nobtain ⟨h1a, h1b⟩ := h1\nhave h2 := hlt N\nhave hcontra : False := by linarith\n-- [S3]\nexact hcontra",
+      "cli_status": "verified",
+      "cli_error_lines": []
+    }
+  ]
+}

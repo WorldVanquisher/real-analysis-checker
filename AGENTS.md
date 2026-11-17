@@ -42,6 +42,7 @@ pytest -m lean            # real Lean + Mathlib tests (~20 min)
 pytest -m llm             # live Claude API tests (needs a key; costs money)
 streamlit run src/ra_checker/ui/app.py   # the app
 cd lean && lake build     # rebuild the RaChecker library after editing lean/
+cd lean && lake build repl  # build the Lean REPL (keeps Mathlib loaded; RA_LEAN_RUNNER)
 ```
 
 Lean output fixtures are regenerated with `RA_CAPTURE_FIXTURES=1 pytest -m lean`;

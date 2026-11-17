@@ -11,5 +11,12 @@ name = "mathlib"
 scope = "leanprover-community"
 rev = "v4.36.0"
 
+# Lean REPL: keeps one Lean process with Mathlib loaded between checks (A8).
+# Pinned to the tag matching lean-toolchain.
+[[require]]
+name = "REPL"
+git = "https://github.com/leanprover-community/repl"
+rev = "v4.36.0"
+
 [[lean_lib]]
 name = "RaChecker"

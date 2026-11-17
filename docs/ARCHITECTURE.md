@@ -227,7 +227,25 @@ recovery, so it is not taken to mean "placeholder" (it still blocks
 
 **Latency.** Measured in B2: about 23 s per check with `import Mathlib`,
 almost all of it the import (12–15 s with narrower imports). The full import is
-kept for now; a persistent Lean process (A8) removes the import cost.
+kept.
+
+**Persistent Lean (A8, `lean/repl.py`).** The community Lean REPL
+(`leanprover-community/repl`, pinned to the tag matching the toolchain) loads
+`import Mathlib` and `import RaChecker` once (about 27 s) into a base
+environment; each check then runs as a command on that base environment —
+checks never see each other's declarations — and takes about 0.01 s. The
+assembled source is sent with only its leading import lines blanked, so Lean's
+positions are the file's own line numbers; the REPL's messages carry the same
+text as the command line and are rendered back into that format (the axiom
+report as a bare line), so the same parser and verdict rules decide. A source
+with other imports goes to the command-line runner. One check runs at a time;
+a check over its time limit kills the REPL's process tree and the next check
+restarts it; a crash or protocol error is a failed run, never a verdict; the
+REPL is restarted every 200 checks to bound memory. `RA_LEAN_RUNNER=auto`
+(default) uses it when `lake build repl` has been run. Equivalence is tested
+on real Lean: the 15 files the first live evaluation checked give identical
+verdicts and error lines, as do all hand-written cases and reference
+exercises.
 
 **Cold start.** The first Lean run after the computer restarts must read the
 whole Mathlib build from disk: 427 s on the development machine, against

@@ -243,7 +243,7 @@ Every advanced milestone keeps all B tests green; none may weaken verification.
 | ✅ A5 | Contextual learning cards + practice questions | Cards selected by tactics detected in code; every card example and practice answer is compiled by Lean in tests. |
 | ✅ A6 | Hints-before-correction ladder in learning mode | Correction hidden until hints are requested. |
 | ✅ A7 | Evaluation set and harness | Report covers the six spec metrics; human rubric documented. |
-| ⬜ A8 | Optional hardening: Lean in a no-network Docker container; persistent Lean REPL for speed | Same results as local runner on the eval set. |
+| ⏳ A8 | Optional hardening: Lean in a no-network Docker container; persistent Lean REPL for speed | Same results as local runner on the eval set. |
 
 **A1 + A3 result.** The app has a Quick Check / Learning Mode toggle
 (`ui/app.py`); the current toggle decides the view, so switching after a check
@@ -330,6 +330,24 @@ verification. The real-checker construction moved to `ra_checker/setup.py`,
 shared by the app and the harness. 375 unit tests pass (including the harness
 with fakes, a detected false verification, a crash mid-case, and the CLI's
 refusal without `--yes`).
+
+**A8, part 1 — persistent Lean (done).** `lean/repl.py` runs checks in the
+Lean REPL (pinned `v4.36.0`, built with `lake build repl`) on a base
+environment with Mathlib and RaChecker loaded once: 27 s to load, then about
+0.01 s per check instead of about 25 s. Same verdicts by construction (same
+source with import lines blanked so positions are file lines, same messages
+rendered into the command-line format, same parser and verdict rules) and by
+test: on real Lean, all 15 files checked in the first live evaluation give
+identical verdicts and error line numbers, all 10 hand-written cases
+(including the `native_decide` and injected-axiom tricks) and all 8 reference
+exercises agree — 21 real-Lean tests in 36 s. `RA_LEAN_RUNNER` (`auto`
+default, `repl`, `cli`) chooses the runner; the warm-up wrapper loads Mathlib
+in the background. Unit tests with a fake REPL cover timeouts (process tree
+killed, next check restarts it), crashes and rejected commands (runtime
+errors, never verdicts), a broken base environment, the periodic restart and
+delegation of other imports to the command-line runner.
+
+**A8, part 2 — Docker sandbox:** see below.
 
 ## First live run (2026-11-17, `claude-opus-5-5`, Lean/Mathlib v4.36.0)
 

@@ -27,7 +27,11 @@ ENV_MODEL = "RA_CHECKER_MODEL"
 ENV_LEAN_PROJECT_DIR = "RA_LEAN_PROJECT_DIR"
 ENV_LEAN_TIMEOUT_S = "RA_LEAN_TIMEOUT_S"
 ENV_LLM_TIMEOUT_S = "RA_LLM_TIMEOUT_S"
+ENV_LEAN_RUNNER = "RA_LEAN_RUNNER"
 ENV_LOG_LEVEL = "RA_LOG_LEVEL"
+
+LeanRunnerMode = Literal["auto", "repl", "cli"]
+LEAN_RUNNER_MODES: tuple[str, ...] = ("auto", "repl", "cli")
 
 DEFAULT_MODEL = "claude-opus-5-5"
 DEFAULT_LEAN_TIMEOUT_S = 120.0
@@ -55,6 +59,7 @@ class Settings(BaseModel):
         default=DEFAULT_LEAN_TIMEOUT_S, gt=0, le=MAX_LEAN_TIMEOUT_S
     )
     llm_timeout_s: float = Field(default=DEFAULT_LLM_TIMEOUT_S, gt=0, le=MAX_LLM_TIMEOUT_S)
+    lean_runner: LeanRunnerMode = "auto"
     log_level: LogLevel = "INFO"
 
     @property
@@ -108,8 +113,18 @@ def load_settings(
         llm_timeout_s=_parse_timeout(
             get(ENV_LLM_TIMEOUT_S), ENV_LLM_TIMEOUT_S, DEFAULT_LLM_TIMEOUT_S, MAX_LLM_TIMEOUT_S
         ),
+        lean_runner=_parse_choice(get(ENV_LEAN_RUNNER), ENV_LEAN_RUNNER, LEAN_RUNNER_MODES, "auto"),
         log_level=_parse_log_level(get(ENV_LOG_LEVEL)),
     )
+
+
+def _parse_choice(raw: str | None, name: str, choices: tuple[str, ...], default: str) -> str:
+    if raw is None:
+        return default
+    value = raw.lower()
+    if value not in choices:
+        raise ConfigError(f"{name} must be one of {', '.join(choices)}, got {raw!r}.")
+    return value
 
 
 def _resolve_project_path(raw: str) -> Path:

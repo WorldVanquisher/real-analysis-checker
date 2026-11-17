@@ -133,7 +133,13 @@ Lean `v4.36.0` with Mathlib `v4.36.0`.
    cd lean
    lake exe cache get
    lake build
+   lake build repl
    ```
+
+   The last command builds the Lean REPL, which lets the app keep Mathlib
+   loaded between checks: a check's Lean step then takes well under a second
+   instead of about 25 s. Without it the app still works, starting Lean for
+   every check.
 
 3. **Check the installation** by running the real-Lean tests from the project
    root (34 tests, about 20 minutes; each check loads Mathlib, about 22–30 s
@@ -161,9 +167,11 @@ streamlit run src/ra_checker/ui/app.py
 
 It opens in your browser. Type the problem and your proof, press **Formalize
 the statement**, check that the Lean statement says what the problem says, and
-press **Yes, it matches — check my proof**. A check takes about half a minute,
-most of it Lean loading Mathlib. If something is missing (API key, Lean,
-Mathlib), the app says what and disables checking.
+press **Yes, it matches — check my proof**. With the Lean REPL built, Lean's
+part of a check takes well under a second (most of the time is Claude reading
+and translating); without it, each check also waits about 25 s for Lean to load
+Mathlib. If something is missing (API key, Lean, Mathlib), the app says what
+and disables checking.
 
 Right after a computer restart, Lean's first run has to read all of Mathlib
 from disk, which took about 7 minutes on the development machine. The app
@@ -183,6 +191,7 @@ win over `.env`. Empty values count as unset.
 | `RA_LEAN_PROJECT_DIR` | `lean` | Lean project folder; relative paths are resolved from the project root. |
 | `RA_LEAN_TIMEOUT_S` | `120` | Wall-clock limit for one Lean run, in seconds (max 3600). |
 | `RA_LLM_TIMEOUT_S` | `300` | Time limit for one LLM request, in seconds (max 1800). |
+| `RA_LEAN_RUNNER` | `auto` | `auto`: keep Mathlib loaded in the Lean REPL if it is built, otherwise start Lean per check; `repl`: require the REPL; `cli`: always start Lean per check. |
 | `RA_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. |
 
 Logs never contain the API key: it is redacted, as is anything shaped like an
