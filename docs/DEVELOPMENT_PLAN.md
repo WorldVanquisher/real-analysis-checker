@@ -217,10 +217,19 @@ Status legend: ✅ done · 🟡 built, a live check is still pending · ⏳ next
   screen until the next interaction.
 * Pending: the real end-to-end run with the real LLM (needs an API key).
 
-### ⬜ B8 — Basic release
+### 🟡 B8 — Basic release
 
 * README installation guide (Windows first, then macOS/Linux notes), test case
   set, demo script; tag `v0.1.0`.
+* Done: README installation guide (Windows and macOS/Linux), running the app,
+  configuration, project layout and test summary; `docs/DEMO.md` with five
+  paste-ready inputs (correct, wrong, incomplete, ambiguous, out of scope);
+  test set — 300 unit tests, 30 real-Lean tests, 8 Lean-verified reference
+  exercises, 3 live-LLM tests.
+* Held back on purpose: the `v0.1.0` tag. No LLM stage has run against the
+  real Claude API yet, so the release waits for: `pytest -m llm`, the five
+  demo inputs run in the app with the outcomes recorded in `docs/DEMO.md`, and
+  any prompt fixes those runs require.
 
 ## Advanced version
 

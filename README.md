@@ -51,6 +51,28 @@ practice questions, and Lean-verified corrections.
 * [Advanced specification](docs/SPEC_ADVANCED.md)
 * [Architecture](docs/ARCHITECTURE.md)
 * [Development plan, risks and dependencies](docs/DEVELOPMENT_PLAN.md)
+* [Demo script](docs/DEMO.md) — five paste-ready inputs covering every result
+
+## Project layout
+
+```text
+src/ra_checker/
+  config.py, models.py, logging_setup.py, input_validation.py
+  llm/          Claude client (structured outputs) and versioned prompts
+  parsing/      stage 1: read the problem, split the proof into steps
+  translation/  stage 2: formal statement, then the tagged Lean proof
+  lean/         file assembly, safety screen, runner, output parser
+  analysis/     error classification, localization, guarded explanations
+  report/       verdict rules (Lean only) and student-facing wording
+  pipeline.py   two-phase Checker: formalize → student confirms → verify
+  ui/           Streamlit app
+lean/           Lean project: RaChecker definitions + bridges to Mathlib
+tests/
+  unit/         no Lean, no network (fakes for the LLM and Lean)
+  lean/         real Lean + Mathlib
+  llm/          live Claude API (opt-in)
+  fixtures/     real Lean output, Lean-verified reference exercises
+```
 
 ## Development setup (current state)
 
@@ -157,10 +179,15 @@ report records which model actually answered.
 ## Tests
 
 ```bash
-pytest            # unit tests: no network, no API key, no Lean (a few seconds)
-pytest -m lean    # real Lean + Mathlib (about 11 minutes, see below)
+pytest            # 300 unit tests: no network, no API key, no Lean (~10 s)
+pytest -m lean    # 30 real Lean + Mathlib tests (roughly a quarter of an hour)
 pytest -m llm     # live Claude API calls: needs ANTHROPIC_API_KEY and costs money
 ```
+
+The real-Lean tests cover the verdict rules on real output (including unsound
+tricks such as `native_decide` and an injected axiom), timeouts, the 8
+reference exercises, the translation and repair stages, error localization,
+and the whole pipeline with a stand-in LLM.
 
 ## Scope
 
