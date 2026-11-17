@@ -5,12 +5,13 @@ A student types a problem and their proof; the app formalizes both in
 **Lean 4 + Mathlib**, runs the real Lean checker, and explains where and why
 verification failed — in language a beginner can follow.
 
-> **Status: Milestone B4 built — real Lean verification works**, with
-> student-friendly ε–N definitions (each proven equivalent to Mathlib), 8
-> Lean-verified reference exercises, and the first LLM stage (reading the
-> problem and splitting the proof into steps), tested with a stand-in LLM. The
-> live LLM check is waiting for an API key. There is no Lean translation or
-> user interface yet. Next up is B5 (Lean translation); see
+> **Status: Milestone B5 built — the checking engine is complete up to the
+> user interface.** Real Lean verification, student-friendly ε–N definitions
+> (each proven equivalent to Mathlib), 8 Lean-verified reference exercises, and
+> the LLM stages (reading the problem, formalizing the statement, translating
+> the proof with a strictly bounded repair loop) are built and tested with a
+> stand-in LLM against real Lean. Live LLM checks are waiting for an API key.
+> There is no user interface yet. Next up is B6 (error analysis); see
 > [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## How it will work
@@ -100,8 +101,8 @@ Lean `v4.36.0` with Mathlib `v4.36.0`.
    ```
 
 3. **Check the installation** by running the real-Lean tests from the project
-   root (about 9 minutes; each check loads Mathlib, about 23 s on a typical
-   Windows laptop):
+   root (26 tests, about 11 minutes; each check loads Mathlib, about 22 s on a
+   typical Windows laptop):
 
    ```bash
    pytest -m lean
@@ -142,7 +143,7 @@ report records which model actually answered.
 
 ```bash
 pytest            # unit tests: no network, no API key, no Lean (a few seconds)
-pytest -m lean    # real Lean + Mathlib (about 9 minutes, see below)
+pytest -m lean    # real Lean + Mathlib (about 11 minutes, see below)
 pytest -m llm     # live Claude API calls: needs ANTHROPIC_API_KEY and costs money
 ```
 

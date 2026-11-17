@@ -102,6 +102,7 @@ class StatementCheck(BaseModel):
 
     ok: bool
     reasons: tuple[str, ...]
+    runtime_problem: bool = False  # timeout or broken environment, not the statement
 
 
 def decide_statement_check(
@@ -111,9 +112,11 @@ def decide_statement_check(
     if run.source != assembled.source:
         raise ValueError("the Lean run did not check the assembled file")
     if run.timed_out:
-        return StatementCheck(ok=False, reasons=("Lean did not finish within the time limit",))
+        return StatementCheck(
+            ok=False, reasons=("Lean did not finish within the time limit",), runtime_problem=True
+        )
     if environment_problem := _header_error(assembled, output):
-        return StatementCheck(ok=False, reasons=(environment_problem,))
+        return StatementCheck(ok=False, reasons=(environment_problem,), runtime_problem=True)
     if output.errors:
         return StatementCheck(
             ok=False,
@@ -121,7 +124,7 @@ def decide_statement_check(
         )
     if run.exit_code != 0:
         return StatementCheck(
-            ok=False, reasons=(f"Lean exited with code {run.exit_code}",)
+            ok=False, reasons=(f"Lean exited with code {run.exit_code}",), runtime_problem=True
         )
     return StatementCheck(ok=True, reasons=("the statement type-checks",))
 

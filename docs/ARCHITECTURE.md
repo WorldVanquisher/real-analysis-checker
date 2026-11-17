@@ -97,7 +97,7 @@ interface with a fake for tests.
 | `lean/safety.py` | Deny-list screen of generated Lean (§7). | Lean execution | B2 |
 | `lean/runner.py` | `LeanRunner` protocol; subprocess runner with timeout and process-tree kill; `FakeLeanRunner`. | Lean execution | B2 |
 | `lean/diagnostics.py` | Parses Lean output into `Diagnostic` objects; detects `sorry` and axioms. | Lean execution | B2 |
-| `analysis/classify.py` | Rule-based Lean error kind from the message text. | error analysis | B6 |
+| `analysis/classify.py` | Rule-based Lean error kind from the message text. | error analysis | B5 |
 | `analysis/locate.py` | Maps a diagnostic line to the enclosing `-- [Sk]` tag and the student's step text. | error analysis | B6 |
 | `analysis/explain.py` | LLM explanation with category, origin, confidence, correction direction (§8). | error analysis | B6 |
 | `report/verdict.py` | The deterministic verdict rules of §3 and the fidelity summary. | result presentation | B2/B7 |
@@ -300,10 +300,16 @@ development machine).
   it as data. Logs record task, model, tokens, duration and request id — never
   the text.
 * The API key comes only from `ANTHROPIC_API_KEY` (or a git-ignored `.env`).
-* A **formalization repair loop** (B5, bounded to 2 attempts) may retry only
-  `syntax` / `unknown_identifier` / `type_mismatch` failures, may not alter the
-  locked statement or add mathematical steps, and every attempt is recorded in
-  the report.
+* A **formalization repair loop** (B5, at most 2 repairs per stage). For the
+  statement, Lean's errors (or safety-screen violations) are sent back and the
+  LLM must keep the meaning. For the proof, repair runs only when *every* Lean
+  error is a syntax error or an unknown name (`analysis/classify.py`,
+  `LEAN_SIDE_KINDS`) — type mismatches and failed tactics can hide a real gap
+  in the student's reasoning, so they are reported, never repaired. A repaired
+  tactic block is accepted only if it has exactly the same step tags and the
+  same number of `sorry` placeholders, so a repair cannot add, drop or fill in
+  steps; safety-screen violations are never repaired. The statement is locked
+  and inserted by Python, so no repair can touch it. Every attempt is recorded.
 
 ## 10. User interface
 

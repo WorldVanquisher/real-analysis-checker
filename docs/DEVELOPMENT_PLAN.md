@@ -126,16 +126,39 @@ Status legend: ✅ done · 🟡 built, a live check is still pending · ⏳ next
   reference problem (in scope, verbatim steps, no questions), an
   out-of-scope problem and an ambiguous one.
 
-### ⏳ B5 — Lean translation (statement, then proof)
+### 🟡 B5 — Lean translation (statement, then proof)
 
-* Files: `src/ra_checker/translation/{statement,proof}.py`, prompts, tests.
+* Files: `src/ra_checker/translation/{__init__,statement,proof}.py`,
+  `src/ra_checker/analysis/classify.py` (pulled forward from B6 for the repair
+  loop), prompts in `llm/prompts.py`, `tests/unit/test_{classify,prompts,
+  translation_statement,translation_proof}.py`, `tests/unit/translation_helpers.py`,
+  `tests/lean/test_translation_lean.py`.
 * Accept: statement is elaborated with `sorry` before it is shown; proof
   translation cannot change the locked statement (assembly test); every tactic
   block carries `-- [Sk]` tags; untranslatable steps become explicit
   placeholders, never silent omissions; bounded repair loop for Lean-side errors
   only, recorded in the report.
+* Result: 257 unit tests and 5 new real-Lean tests pass. Statement stage: the
+  LLM drafts binders and goal plus a back-translation and any conventions it
+  had to choose; the draft must pass the safety screen and type-check in Lean,
+  with up to 2 repairs fed by the real errors; the result is never
+  pre-confirmed. Proof stage: refuses an unconfirmed statement; step statuses
+  are reconciled with the tags actually in the code (untagged → `omitted`,
+  `sorry`-only → `omitted` as a placeholder, `-- [Ak]` → `added`, leading
+  untagged code is labelled as an added step); inconsistent tags and safety
+  violations fail before Lean runs and are never repaired; repair runs only when
+  every error is a syntax error or unknown name, at most twice, and is rejected
+  unless it keeps the same tags and the same number of placeholders. Real-Lean
+  checks: the prompt's worked example compiles; a statement with a misspelled
+  definition is repaired; the `sum_of_limits` reference proof translates to
+  `VERIFIED`; a made-up lemma name is repaired in one round; an ε-instead-of-ε/2
+  mistake is reported (`linarith failed`) and not repaired. Every attempt is
+  recorded (`StatementAttempt`, `ProofAttempt`).
+* Pending: prompt quality against the real model — needs an API key (live
+  tests to be added with B7's end-to-end run). Not yet done: a vacuity check
+  that the formal hypotheses are not contradictory.
 
-### ⬜ B6 — Error analysis
+### ⏳ B6 — Error analysis
 
 * Files: `src/ra_checker/analysis/{classify,locate,explain}.py`, tests with
   captured Lean output.

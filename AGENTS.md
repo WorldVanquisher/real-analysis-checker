@@ -38,7 +38,7 @@ Project: Real Analysis Homework Checker. Read `docs/ARCHITECTURE.md` and
 ```bash
 pip install -e ".[dev]"   # install
 pytest                    # unit tests (no Lean, no network)
-pytest -m lean            # real Lean + Mathlib tests (~9 min)
+pytest -m lean            # real Lean + Mathlib tests (~11 min)
 pytest -m llm             # live Claude API tests (needs a key; costs money)
 cd lean && lake build     # rebuild the RaChecker library after editing lean/
 ```
