@@ -2,7 +2,7 @@
 
 import pytest
 from pipeline_helpers import TACTICS, make_checker, proof_answer, parse_answer
-from translation_helpers import OK, STATEMENT_OK, UNSOLVED
+from translation_helpers import CONTRADICTION, OK, STATEMENT_OK, UNSOLVED
 
 from ra_checker.llm.client import LLMUnavailableError
 from ra_checker.models import (
@@ -91,3 +91,25 @@ def test_explanation_lines_flag_low_confidence():
     ]:
         _, text = explanation_lines(_error(origin, confidence))
         assert text.startswith(NOT_CONFIDENT)
+
+
+def contradictory_report(*lean):
+    checker, _, scripted = make_checker(*lean)
+    scripted.probe_results = [CONTRADICTION]
+    pending = checker.formalize(SUBMISSION)
+    assert pending.statement.contradictory_hypotheses is True
+    return checker.verify(pending.confirmed()).report
+
+
+def test_acceptance_with_contradictory_hypotheses_is_not_presented_as_meaningful():
+    report = contradictory_report()
+    assert report.status.value == "verified"  # Lean's verdict itself is not changed
+    head = headline(report)
+    assert head.level == "warning"
+    assert "contradict each other" in head.title
+    assert "says nothing about your argument" in head.body
+    assert "proof is correct" not in f"{head.title} {head.body}".lower()
+
+
+def test_failure_headline_is_unchanged_by_contradictory_hypotheses():
+    assert headline(contradictory_report(STATEMENT_OK, UNSOLVED)).title == "Lean did not accept the formalized proof."

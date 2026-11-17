@@ -15,8 +15,11 @@ from ra_checker.models import CheckReport, VerificationStatus
 from ra_checker.pipeline import Checker, PendingCheck
 from ra_checker.report.mapping import build_mapping
 from ra_checker.report.presentation import (
+    CONTRADICTORY_BEFORE_CONFIRMING,
+    CONTRADICTORY_IN_REPORT,
     STEP_STATUS_LABELS,
     explanation_lines,
+    has_contradictory_hypotheses,
     headline,
 )
 from ra_checker.translation.proof import ProofAttempt
@@ -65,6 +68,8 @@ def statement_review(pending: PendingCheck) -> None:
             "To formalize the problem, these conventions were assumed:\n"
             + "\n".join(f"- {a}" for a in pending.statement.assumptions_added)
         )
+    if pending.statement.contradictory_hypotheses is True:
+        st.error(CONTRADICTORY_BEFORE_CONFIRMING)
     _how_we_read_it(pending)
 
 
@@ -82,6 +87,8 @@ def report_view(
     reasoning ↔ Lean mapping."""
     head = headline(report)
     _LEVEL_WIDGETS[head.level](f"**{head.title}** {head.body}")
+    if has_contradictory_hypotheses(report) and report.status is not VerificationStatus.VERIFIED:
+        st.warning(CONTRADICTORY_IN_REPORT)  # for VERIFIED the headline already says it
 
     if report.status is VerificationStatus.NEEDS_CLARIFICATION and report.analysis:
         if report.analysis.ambiguities:

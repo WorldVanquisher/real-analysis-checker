@@ -3,12 +3,16 @@
 import pytest
 
 from ra_checker.lean.assemble import (
+    PROBE_TACTICS,
+    PROBE_THEOREM_NAME,
     THEOREM_NAME,
     AssemblyError,
+    assemble_hypotheses_probe,
     assemble_proof,
     assemble_statement_check,
     normalize_tactic_block,
 )
+from ra_checker.lean.safety import check_tactic_block
 
 STATEMENT = "(a : ℕ → ℝ) (h : ∀ n, a n = 1) : a 3 = 1"
 
@@ -69,3 +73,17 @@ def test_statement_check_uses_sorry_and_no_axiom_check():
 def test_empty_parts_are_rejected(statement, block):
     with pytest.raises(AssemblyError):
         assemble_proof(statement, block)
+
+
+def test_hypotheses_probe_proves_false_from_the_same_statement():
+    f = assemble_hypotheses_probe(STATEMENT)
+    lines = f.source.split("\n")
+    assert f.theorem_name == PROBE_THEOREM_NAME != THEOREM_NAME
+    assert lines[f.statement_line - 1] == f"theorem {PROBE_THEOREM_NAME} {STATEMENT} := by"
+    assert lines[f.proof_first_line - 1 : f.proof_first_line - 1 + f.proof_line_count] == [
+        "  " + t for t in PROBE_TACTICS
+    ]
+    assert lines[f.axioms_line - 1] == f"#print axioms {PROBE_THEOREM_NAME}"
+    assert PROBE_TACTICS[0] == "exfalso" and "sorry" not in "\n".join(PROBE_TACTICS)
+    # The fixed tactics would pass the same screen as translator-written ones.
+    assert check_tactic_block("\n".join(PROBE_TACTICS)).ok

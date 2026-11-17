@@ -169,6 +169,11 @@ class FormalStatement(_Model):
     back_translation: NonBlankStr
     assumptions_added: tuple[NonBlankStr, ...] = ()
     confirmed_by_student: bool = False
+    # Set by Python from a Lean run, never by the LLM. True: Lean proved False
+    # from the hypotheses before the colon, so anything follows from them.
+    # False: a fixed set of tactics found no contradiction (not a proof of
+    # consistency). None: not checked.
+    contradictory_hypotheses: bool | None = None
 
 
 class StepMapping(_Model):

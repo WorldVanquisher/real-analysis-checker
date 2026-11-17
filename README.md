@@ -142,7 +142,7 @@ Lean `v4.36.0` with Mathlib `v4.36.0`.
    every check.
 
 3. **Check the installation** by running the real-Lean tests from the project
-   root (59 tests, about 20 minutes, mostly the command-line runner loading
+   root (65 tests, about 20 minutes, mostly the command-line runner loading
    Mathlib for each check, about 22–30 s each on a typical Windows laptop; the
    Docker sandbox tests are skipped unless the image below is built):
 
@@ -190,7 +190,9 @@ streamlit run src/ra_checker/ui/app.py
 
 It opens in your browser. Type the problem and your proof, press **Formalize
 the statement**, check that the Lean statement says what the problem says, and
-press **Yes, it matches — check my proof**. With the Lean REPL built, Lean's
+press **Yes, it matches — check my proof**. If Lean can prove that the formal
+statement's hypotheses contradict each other (so that anything would follow
+from them), a red warning appears before you confirm. With the Lean REPL built, Lean's
 part of a check takes well under a second (most of the time is Claude reading
 and translating); without it, each check also waits about 25 s for Lean to load
 Mathlib. If something is missing (API key, Lean, Mathlib), the app says what
@@ -230,8 +232,8 @@ report records which model actually answered.
 ## Tests
 
 ```bash
-pytest            # 404 unit tests: no network, no API key, no Lean (~25 s)
-pytest -m lean    # 59 real Lean + Mathlib tests (~20 min); the Docker ones skip without the image
+pytest            # 423 unit tests: no network, no API key, no Lean (~25 s)
+pytest -m lean    # 65 real Lean + Mathlib tests (~20 min); the Docker ones skip without the image
 pytest -m llm     # live Claude API calls: needs ANTHROPIC_API_KEY and costs money
 ```
 

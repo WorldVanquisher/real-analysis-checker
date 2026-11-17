@@ -131,6 +131,26 @@ def decide_statement_check(
     return StatementCheck(ok=True, reasons=("the statement type-checks",))
 
 
+def decide_hypotheses_probe(*, assembled: AssembledFile, run: LeanRun, output: LeanOutput) -> bool | None:
+    """Did Lean prove ``False`` from the statement's hypotheses?
+
+    ``True`` only on positive evidence, by the same standard as ``VERIFIED``:
+    exit code 0, no errors, no ``sorry``, an axiom report for the probe listing
+    only the standard axioms. ``False``: the fixed tactics found no
+    contradiction — this does not prove the hypotheses consistent. ``None``:
+    the run could not decide (timeout, broken environment, odd output).
+    """
+    if run.source != assembled.source:
+        raise ValueError("the Lean run did not check the assembled file")
+    if run.timed_out or run.exit_code is None or _header_error(assembled, output):
+        return None
+    if output.errors or output.uses_sorry:
+        return False
+    if run.exit_code != 0 or output.axioms is None or not set(output.axioms) <= STANDARD_AXIOMS:
+        return None
+    return True
+
+
 def _header_error(assembled: AssembledFile, output: LeanOutput) -> str | None:
     """An error in the Python-written header (imports, options) is never the
     student's or the translator's fault: it means the Lean environment is broken,

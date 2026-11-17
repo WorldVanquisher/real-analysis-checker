@@ -37,7 +37,8 @@ flowchart TD
     C -->|ambiguous / out of scope| Q[NEEDS_CLARIFICATION: ask student]
     C --> D[translation.statement: LLM drafts Lean statement + back-translation]
     D --> D2[lean: elaborate statement with sorry to check it type-checks]
-    D2 --> E{Student confirms statement?}
+    D2 --> D3[lean: try to prove False from the hypotheses; warn if it succeeds]
+    D3 --> E{Student confirms statement?}
     E -->|no, edits| C
     E -->|yes, locked| F[translation.proof: LLM writes tactic block tagged -- S1..Sn]
     F --> G[lean.assemble: fixed header + locked statement + tactic block + axiom check]
@@ -208,6 +209,36 @@ so a mistranslated statement would still type-check (found in B2).
 Before the proof is translated, the locked statement is elaborated once with
 `:= by sorry` to prove it type-checks (`assemble_statement_check`,
 `decide_statement_check`).
+
+**Contradictory hypotheses** (`assemble_hypotheses_probe`,
+`decide_hypotheses_probe`, `translation.statement.probe_hypotheses`). If a
+statement's hypotheses can never all hold, any goal follows from them and Lean
+would accept almost any proof. So once Lean accepts the statement, a second
+file states it as `theorem hypotheses_contradict <statement> := by` with a
+fixed tactic block written by Python: `exfalso`, then the first of
+`contradiction`, `linarith`, `omega`, `simp_all` and `norm_num at *` that
+closes the goal. Only the hypotheses before the colon are used: introducing
+the goal's own premises would make the probe *prove* statements like `¬ P`.
+
+The result is `FormalStatement.contradictory_hypotheses`:
+
+* `True` only on the same evidence as `VERIFIED`: exit code 0, no errors, no
+  `sorry`, standard axioms. Lean really did derive `False`.
+* `False`: these tactics found no contradiction. This does not prove the
+  hypotheses consistent.
+* `None`: the probe could not run or decide.
+
+It is advisory and never changes a verdict. On `True` the student sees a red
+warning before confirming. If they confirm anyway and Lean accepts the proof,
+the headline says the acceptance tells them nothing about their argument.
+
+On real Lean the probe flags five contradictory statements and none of the
+67 real statements in the project (reference exercises, live-evaluation
+statements, hand-written cases, concept-card examples, practice problems).
+With the REPL each probe takes milliseconds; with the command-line runner it
+adds one Lean start (about 25 s) to formalizing. It misses contradictions
+that need a `∀` hypothesis instantiated or a definition unfolded, for example
+`∀ n, 0 < a n` with `∀ n, a n < 0`.
 
 **Execution** (`lean/runner.py`). Each check writes the file to a fresh
 temporary directory and runs `lake env lean <file>` with the Lean project as
@@ -402,8 +433,9 @@ with `streamlit run src/ra_checker/ui/app.py`:
 
 1. **Formalize.** Problem + proof inputs → original problem and Lean
    statement side by side with the back-translation and any assumed
-   conventions, plus "how we read your proof" (steps, with reworded ones
-   flagged) → *Yes, it matches* or *No — I'll clarify*. Clarification
+   conventions, a red warning if Lean proved the hypotheses contradictory,
+   plus "how we read your proof" (steps, with reworded ones flagged) → *Yes,
+   it matches* or *No — I'll clarify*. Clarification
    questions and out-of-scope notices appear here. Nothing is sent to Lean for
    the proof until the student confirms.
 2. **Verify.** Headline from `report/presentation.py`, original problem, the

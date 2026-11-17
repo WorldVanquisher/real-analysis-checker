@@ -5,6 +5,11 @@ draft must pass the safety screen and elaborate in Lean (with ``sorry`` as the
 proof). If Lean rejects it, the LLM gets the errors and may fix the statement
 — at most :data:`MAX_STATEMENT_REPAIRS` times, keeping its meaning. The result
 is *not* confirmed: the student must confirm it before the proof stage.
+
+Once Lean accepts the statement, a second, Python-written file asks Lean to
+prove ``False`` from its hypotheses. If that succeeds, the hypotheses
+contradict each other and any proof would be accepted, so the student is
+warned before confirming (``FormalStatement.contradictory_hypotheses``).
 """
 
 from __future__ import annotations
@@ -15,7 +20,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel, ConfigDict
 
 from ra_checker.input_validation import normalize_for_llm
-from ra_checker.lean.assemble import assemble_statement_check
+from ra_checker.lean.assemble import assemble_hypotheses_probe, assemble_statement_check
 from ra_checker.lean.diagnostics import parse_lean_output
 from ra_checker.lean.runner import LeanRunner, LeanUnavailableError
 from ra_checker.lean.safety import check_statement
@@ -27,7 +32,7 @@ from ra_checker.llm.prompts import (
     repair_statement_user_message,
 )
 from ra_checker.models import FormalStatement, ProblemAnalysis, VerificationStatus
-from ra_checker.report.verdict import decide_statement_check
+from ra_checker.report.verdict import decide_hypotheses_probe, decide_statement_check
 from ra_checker.translation import status_for_llm_error
 
 logger = logging.getLogger(__name__)
@@ -119,6 +124,7 @@ def formalize_statement(
                     back_translation=out.back_translation.strip() or "(no back-translation given)",
                     assumptions_added=tuple(a.strip() for a in out.assumptions_added if a.strip()),
                     confirmed_by_student=False,
+                    contradictory_hypotheses=probe_hypotheses(statement, lean),
                 ),
                 failure=None,
                 detail="Lean accepted the formal statement; the student must confirm it.",
@@ -134,6 +140,24 @@ def formalize_statement(
         f"Lean did not accept the formal statement after {len(attempts)} attempts: "
         + "; ".join(attempts[-1].problems),
     )
+
+
+def probe_hypotheses(statement: str, lean: LeanRunner) -> bool | None:
+    """Ask Lean whether the statement's hypotheses contradict each other (see
+    :func:`assemble_hypotheses_probe`). Advisory only: it can add a warning but
+    never fails the stage or changes a verdict. The statement has already
+    passed the safety screen; the tactics are fixed by Python."""
+    assembled = assemble_hypotheses_probe(statement)
+    try:
+        run = lean.run(assembled.source)
+    except LeanUnavailableError as exc:
+        logger.warning("hypotheses probe not run: %s", exc)
+        return None
+    output = parse_lean_output(run.stdout, assembled.theorem_name, run.stderr)
+    found = decide_hypotheses_probe(assembled=assembled, run=run, output=output)
+    outcome = {True: "contradictory", False: "no contradiction found"}.get(found, "undecided")
+    logger.info("hypotheses probe: %s", outcome)
+    return found
 
 
 def _check_statement(statement: str, lean: LeanRunner) -> tuple[list[str], bool]:

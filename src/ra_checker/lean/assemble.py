@@ -35,6 +35,20 @@ import textwrap
 from dataclasses import dataclass
 
 THEOREM_NAME = "student_claim"
+PROBE_THEOREM_NAME = "hypotheses_contradict"
+# Written here, never by the LLM: try to derive False from the hypotheses
+# before the colon, with a few fast, terminating tactics. Hypotheses inside
+# the goal (after the colon) are deliberately not introduced: for a goal such
+# as `¬ P`, deriving False from `P` would simply be the proof.
+PROBE_TACTICS: tuple[str, ...] = (
+    "exfalso",
+    "first",
+    "  | contradiction",
+    "  | linarith",
+    "  | omega",
+    "  | (simp_all; done)",
+    "  | (norm_num at *; done)",
+)
 HEADER_IMPORTS: tuple[str, ...] = ("Mathlib", "RaChecker")
 HEADER_COMMANDS: tuple[str, ...] = ("open RaChecker", "set_option autoImplicit false")
 INDENT = "  "
@@ -83,12 +97,20 @@ def assemble_statement_check(statement: str) -> AssembledFile:
     return _assemble(statement, [INDENT + "sorry"], axioms=False)
 
 
-def _assemble(statement: str, proof_lines: list[str], *, axioms: bool) -> AssembledFile:
+def assemble_hypotheses_probe(statement: str) -> AssembledFile:
+    """File in which Lean tries to prove ``False`` from the statement's own
+    hypotheses (a vacuity check). If it succeeds, any goal follows from them."""
+    return _assemble(statement, [INDENT + t for t in PROBE_TACTICS], axioms=True, name=PROBE_THEOREM_NAME)
+
+
+def _assemble(
+    statement: str, proof_lines: list[str], *, axioms: bool, name: str = THEOREM_NAME
+) -> AssembledFile:
     if not statement.strip():
         raise AssemblyError("the statement is empty")
     header = [f"import {module}" for module in HEADER_IMPORTS] + [""]
     header += [*HEADER_COMMANDS, ""]
-    theorem = f"theorem {THEOREM_NAME} {statement} := by".split("\n")
+    theorem = f"theorem {name} {statement} := by".split("\n")
 
     lines = header + theorem
     statement_line = len(header) + 1
@@ -97,13 +119,13 @@ def _assemble(statement: str, proof_lines: list[str], *, axioms: bool) -> Assemb
 
     axioms_line = None
     if axioms:
-        lines += ["", f"#print axioms {THEOREM_NAME}"]
+        lines += ["", f"#print axioms {name}"]
         axioms_line = len(lines)
 
     return AssembledFile(
         source="\n".join(lines) + "\n",
         statement=statement,
-        theorem_name=THEOREM_NAME,
+        theorem_name=name,
         statement_line=statement_line,
         proof_first_line=proof_first_line,
         proof_line_count=len(proof_lines),

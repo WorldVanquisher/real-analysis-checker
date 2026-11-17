@@ -121,10 +121,9 @@ first live run on 2026-11-17 are now ✅; see "First live run" below)
   missing goal or an empty step list into clarification questions, keeps
   student text out of the logs, and stops student text from closing the
   prompt's delimiting tags. New setting `RA_LLM_TIMEOUT_S` (default 300 s).
-* Pending: the three live tests (`pytest -m llm`) have not run, because no
-  Anthropic API key is configured on the development machine. They check a
-  reference problem (in scope, verbatim steps, no questions), an
-  out-of-scope problem and an ambiguous one.
+* Live check (2026-11-17): the parser's live tests passed — a reference
+  problem (in scope, verbatim steps, no questions), an out-of-scope problem
+  and an ambiguous one (see "First live run").
 
 ### ✅ B5 — Lean translation (statement, then proof)
 
@@ -154,9 +153,11 @@ first live run on 2026-11-17 are now ✅; see "First live run" below)
   `VERIFIED`; a made-up lemma name is repaired in one round; an ε-instead-of-ε/2
   mistake is reported (`linarith failed`) and not repaired. Every attempt is
   recorded (`StatementAttempt`, `ProofAttempt`).
-* Pending: prompt quality against the real model — needs an API key (live
-  tests to be added with B7's end-to-end run). Not yet done: a vacuity check
-  that the formal hypotheses are not contradictory.
+* Live check (2026-11-17): every one of the 15 evaluation cases that reached
+  Lean compiled, and all 15 statements were graded faithful by the developer
+  (to be confirmed by a human grader; see "First live run"). The check for
+  contradictory hypotheses was added later (see "Contradictory-hypotheses
+  check" below).
 
 ### ✅ B6 — Error analysis
 
@@ -182,7 +183,9 @@ first live run on 2026-11-17 are now ✅; see "First live run" below)
   B7). At most 3 errors per check are analysed. Real Lean: the
   ε-instead-of-ε/2 mistake is located at S5 (the final estimate); an open goal
   at the end of a proof is attributed to the last step with the goal passed on.
-* Pending: explanation quality against the real model (API key).
+* Live check (2026-11-17): all six wrong or incomplete evaluation proofs were
+  located at the step that holds the mistake, with accurate explanations (see
+  "First live run").
 
 ### ✅ B7 — Pipeline + Streamlit UI
 
@@ -215,7 +218,9 @@ first live run on 2026-11-17 are now ✅; see "First live run" below)
   finds Lean and Mathlib and reports the missing API key, with checking
   disabled. Fixed during testing: "No — I'll clarify" left the statement on
   screen until the next interaction.
-* Pending: the real end-to-end run with the real LLM (needs an API key).
+* Live check (2026-11-17): the evaluation set ran end to end with the real
+  LLM and real Lean, and the app was used with the real API (see "First live
+  run").
 
 ### ✅ B8 — Basic release
 
@@ -280,7 +285,7 @@ axioms only) and checks a right and a wrong practice answer; 339 unit tests
 pass, including an `AppTest` run where a practice answer goes to the Lean
 runner.
 
-**A2 result (live check pending).** `explain/code.py` makes one structured
+**A2 result (checked live on 2026-11-17).** `explain/code.py` makes one structured
 LLM call per proof, on request ("Explain the Lean code" in Learning Mode, cached
 per check), with the tagged code, each block's student step, the statement and
 Lean's verdict as context. For each block it returns the Lean syntax, the
@@ -290,10 +295,10 @@ backticks must occur in that block, the statement or the RaChecker
 definitions, otherwise the block's text is withheld and replaced by an
 automatic summary from the concept cards (the app says which names caused it);
 the same applies to the overview; an LLM outage gives automatic summaries.
-351 unit tests pass; `tests/llm/test_code_explanation_live.py` is ready for a
-key.
+351 unit tests pass. `tests/llm/test_code_explanation_live.py` passed in the
+first live run; grounding was 57/57 after the fix described there.
 
-**A4 + A6 result (live check pending).** Error explanations now carry all
+**A4 + A6 result (checked live on 2026-11-17).** Error explanations now carry all
 seven parts of the spec: location, the raw Lean message, a simplified
 explanation, a mathematical interpretation (new LLM field; prompt
 `explain_error.v2`), the relevant Lean concept (chosen by rules from the
@@ -309,9 +314,11 @@ report never changes. In Learning Mode each error card offers, one click at a
 time, a hint, then the mathematical interpretation, then the corrected proof
 (only then are the LLM and Lean run); Quick Check keeps the concise card.
 365 unit tests pass; with real Lean, a `positivity` fix of a type-mismatch
-proof is verified and a non-fix is labelled unverified.
+proof is verified and a non-fix is labelled unverified. Changed after the
+live run: a correction now rewrites the whole proof with the same step tags,
+not only the failing step (fix 4 in "First live run").
 
-**A7 result (not yet run against the real API).** `eval/cases.toml` holds 20
+**A7 result (run against the real API on 2026-11-17; see "First live run").** `eval/cases.toml` holds 20
 cases: 3 each of correct, incorrect, incomplete, missing-assumption,
 hard-to-formalize and likely-to-be-mistranslated proofs (the six categories of
 the spec), plus an ambiguous and an out-of-scope problem; wrong proofs name the
@@ -387,6 +394,51 @@ Limitations:
 * The evaluation harness was not rerun end to end through the sandbox (that
   needs the API). Its 15 checked files were replayed instead, which covers the
   Lean side.
+
+**Contradictory-hypotheses check (B5 follow-up, done).** If a formal
+statement's hypotheses can never all hold, Lean accepts almost any proof of
+it, so a `VERIFIED` would mean nothing. Once Lean accepts a statement, a
+second file written by Python, `theorem hypotheses_contradict <statement> :=
+by exfalso; first | contradiction | linarith | omega | (simp_all; done) |
+(norm_num at *; done)`, asks Lean to derive `False` from the hypotheses before
+the colon. The answer is stored in `FormalStatement.contradictory_hypotheses`:
+
+* `True` only on the same evidence as `VERIFIED`;
+* `False` when the tactics found nothing;
+* `None` when the probe could not run.
+
+The check is advisory: verdicts never change. When the answer is `True`:
+
+* the student sees a red warning before confirming;
+* if they confirm and Lean accepts the proof, the headline becomes the warning
+  "Lean accepted the formal proof, but the formal hypotheses contradict each
+  other" rather than a success.
+
+Results:
+
+* Unit tests: assembly, the decision rule, the statement stage (including a
+  probe that times out or cannot run), the headline and the app. The test
+  stand-in answers probe files separately, so existing run counts are
+  unchanged.
+* Real Lean, 6 tests: five contradictory statements are flagged (opposite
+  signs, an impossible natural number, `L ≠ L`, `∀ n, a n < a n`, and an ε
+  that is both positive and not). None of the 67 real statements in the
+  project are flagged or left undecided: reference exercises, live-evaluation
+  statements, evaluation reference statements, hand-written cases,
+  concept-card examples and practice problems. The 67 together took 1.6 s
+  with the REPL.
+* Whole suite afterwards: 423 unit tests pass, and `pytest -m lean` passed
+  65 of 65 in 20 min 43 s (including the Docker sandbox tests).
+
+Limitations:
+
+* It misses contradictions that need a `∀` hypothesis instantiated or a
+  definition unfolded; tried: `∀ n, 0 < a n` with `∀ n, a n < 0`, and
+  `SeqConvergesTo (fun _ => c) 1` with `c = 2`.
+* Hypotheses written inside the goal (`: P → Q`) are not examined, on purpose:
+  for a goal such as `¬ P`, deriving `False` from `P` is the proof itself.
+* With the command-line runner, it adds one Lean start (about 25 s) to
+  formalizing.
 
 ## First live run (2026-11-17, `claude-opus-5-5`, Lean/Mathlib v4.36.0)
 
@@ -489,6 +541,6 @@ adaptive thinking, two Lean runs of about 25 s).
 ## Open decisions for the owner
 
 1. ~~Approve installing elan + Lean + Mathlib~~ — done at B2.
-2. Confirm Anthropic Claude as the LLM provider and provide an API key before
-   B4 live tests.
+2. ~~Confirm Anthropic Claude as the LLM provider and provide an API key~~ —
+   done; first live run on 2026-11-17.
 3. First topic set: sequences and convergence (proposed list in B3).

@@ -2,11 +2,12 @@
 
 import pytest
 
-from ra_checker.lean.assemble import assemble_proof, assemble_statement_check
+from ra_checker.lean.assemble import assemble_hypotheses_probe, assemble_proof, assemble_statement_check
 from ra_checker.lean.diagnostics import LeanOutput
 from ra_checker.models import Diagnostic, LeanRun, Severity, VerificationStatus
 from ra_checker.report.verdict import (
     STANDARD_AXIOMS,
+    decide_hypotheses_probe,
     decide_proof_verdict,
     decide_statement_check,
 )
@@ -115,3 +116,51 @@ def test_statement_check():
     assert not check(output(axioms=None), exit_code=None, timed_out=True).ok
     broken = check(output(error("unknown module prefix", line=1), axioms=None), exit_code=1)
     assert not broken.ok and "environment" in broken.reasons[0]
+
+
+# ------------------------------------------------------- hypotheses probe
+
+PROBE = assemble_hypotheses_probe("(x : ℝ) (h₁ : 0 < x) (h₂ : x < 0) : x = 5")
+
+
+def probe(r=None, o=None):
+    return decide_hypotheses_probe(
+        assembled=PROBE,
+        run=r or LeanRun(source=PROBE.source, exit_code=0, duration_s=0.1),
+        output=o or output(),
+    )
+
+
+def test_probe_reports_a_contradiction_only_on_a_clean_proof():
+    assert probe() is True
+    assert probe(o=output(axioms=("propext",))) is True
+
+
+@pytest.mark.parametrize(
+    "o, code",
+    [
+        (output(error("linarith failed", line=PROBE.proof_first_line + 2)), 1),
+        (output(uses_sorry=True, axioms=(*STANDARD, "sorryAx")), 0),
+    ],
+)
+def test_probe_failure_means_no_contradiction_found(o, code):
+    assert probe(LeanRun(source=PROBE.source, exit_code=code, duration_s=0.1), o) is False
+
+
+@pytest.mark.parametrize(
+    "r, o",
+    [
+        (LeanRun(source=PROBE.source, exit_code=None, timed_out=True, duration_s=120), None),
+        (None, output(error("unknown module", line=1))),  # broken environment
+        (None, output(axioms=None)),  # no axiom report: not positive evidence
+        (None, output(axioms=(*STANDARD, "Lean.ofReduceBool"))),
+        (LeanRun(source=PROBE.source, exit_code=1, duration_s=0.1), None),
+    ],
+)
+def test_probe_that_cannot_decide_returns_none(r, o):
+    assert probe(r, o) is None
+
+
+def test_probe_must_check_the_assembled_file():
+    with pytest.raises(ValueError):
+        probe(LeanRun(source="something else", exit_code=0, duration_s=0.1))

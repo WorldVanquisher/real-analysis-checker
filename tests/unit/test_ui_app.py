@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from pipeline_helpers import PROBLEM, PROOF, TACTICS, make_checker, parse_answer
 from streamlit.testing.v1 import AppTest
-from translation_helpers import OK, STATEMENT_OK, UNSOLVED
+from translation_helpers import CONTRADICTION, OK, STATEMENT_OK, UNSOLVED
 
 from ra_checker.ui import services
 
@@ -194,3 +194,21 @@ def test_not_ready_environment_disables_checking(monkeypatch):
 def _no_real_checker(monkeypatch):
     # Never build the real (networked) checker in unit tests.
     monkeypatch.setattr(services, "_build_checker", lambda: (None, ["not used in tests"]))
+
+
+def test_contradictory_hypotheses_are_flagged_before_and_after_confirming():
+    checker, _, lean = make_checker()
+    lean.probe_results = [CONTRADICTION]
+    at = fill(start(checker))
+    assert not at.exception
+    assert "hypotheses of this formal statement contradict each other" in texts(at.error)
+    at = at.button(key="confirm").click().run()
+    assert not at.exception
+    assert "the formal hypotheses contradict each other" in texts(at.warning)
+    assert not at.success  # no green "accepted" box for a vacuous statement
+
+
+def test_no_contradiction_warning_by_default():
+    checker, *_ = make_checker()
+    at = fill(start(checker))
+    assert "contradict" not in texts(at.error) + texts(at.warning)

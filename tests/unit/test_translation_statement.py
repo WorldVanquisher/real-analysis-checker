@@ -2,6 +2,7 @@
 
 import pytest
 from translation_helpers import (
+    CONTRADICTION,
     STATEMENT_ERROR,
     STATEMENT_OK,
     TIMEOUT,
@@ -41,11 +42,11 @@ def sequence(*answers):
     return lambda request: answers.pop(0)
 
 
-def run(llm_answers, *lean_results, problem=PROBLEM, a=None):
+def run(llm_answers, *lean_results, problem=PROBLEM, a=None, probe_results=()):
     fake = FakeLLMClient(
         {FORMALIZE_TASK: llm_answers[0], REPAIR_STATEMENT_TASK: sequence(*llm_answers[1:])}
     )
-    lean = ScriptedLean(*lean_results)
+    lean = ScriptedLean(*lean_results, probe_results=probe_results)
     outcome = formalize_statement(problem, a or analysis(), fake, lean)
     return outcome, fake, lean
 
@@ -113,3 +114,31 @@ def test_problem_needing_clarification_is_refused():
     unclear = ProblemAnalysis(ambiguities=("Which sequence?",), in_scope=True)
     with pytest.raises(ValueError, match="clarification"):
         run([out()], a=unclear)
+
+
+# ------------------------------------------------------- contradictory hypotheses
+
+
+def test_accepted_statement_is_probed_for_contradictory_hypotheses():
+    outcome, _, lean = run([out()], STATEMENT_OK)
+    assert outcome.ok and outcome.statement.contradictory_hypotheses is False
+    (probe,) = lean.probe_sources
+    assert f"theorem hypotheses_contradict {GOOD} := by\n  exfalso\n  first\n" in probe
+    assert probe.endswith("#print axioms hypotheses_contradict\n")
+
+
+def test_contradiction_found_by_lean_is_recorded():
+    outcome, _, _ = run([out()], STATEMENT_OK, probe_results=[CONTRADICTION])
+    assert outcome.ok and outcome.statement.contradictory_hypotheses is True
+    assert not outcome.statement.confirmed_by_student
+
+
+@pytest.mark.parametrize("probe", [UNAVAILABLE, TIMEOUT])
+def test_probe_that_cannot_run_leaves_the_question_open(probe):
+    outcome, _, _ = run([out()], STATEMENT_OK, probe_results=[probe])
+    assert outcome.ok and outcome.statement.contradictory_hypotheses is None
+
+
+def test_rejected_statements_are_not_probed():
+    outcome, _, lean = run([out("(x : ℝ) : x = Foo")] * 3, *[STATEMENT_ERROR] * 3)
+    assert not outcome.ok and lean.probe_sources == []

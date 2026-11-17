@@ -23,17 +23,35 @@ STATEMENT_ERROR = ("/tmp/x/Check.lean:7:40: error(lean.unknownIdentifier): Unkno
 TIMEOUT = "timeout"
 UNAVAILABLE = "unavailable"
 
+# The hypotheses probe (a separate file, theorem `hypotheses_contradict`).
+NO_CONTRADICTION = (
+    "/tmp/x/Check.lean:9:2: error: linarith failed to find a contradiction\n"
+    "'hypotheses_contradict' depends on axioms: [sorryAx]\n",
+    1,
+)
+CONTRADICTION = ("'hypotheses_contradict' depends on axioms: [propext, Classical.choice, Quot.sound]\n", 0)
+
 
 class ScriptedLean:
-    """Returns the scripted results in order and records every source."""
+    """Returns the scripted results in order and records every source.
 
-    def __init__(self, *results):
+    Hypotheses-probe files are answered from ``probe_results`` (default: no
+    contradiction found) and recorded in ``probe_sources`` instead, so tests
+    that count proof and statement runs are unaffected by the probe."""
+
+    def __init__(self, *results, probe_results=()):
         self.results = list(results)
         self.sources: list[str] = []
+        self.probe_results = list(probe_results)
+        self.probe_sources: list[str] = []
 
     def run(self, source: str) -> LeanRun:
-        self.sources.append(source)
-        result = self.results.pop(0)
+        if "theorem hypotheses_contradict " in source:
+            self.probe_sources.append(source)
+            result = self.probe_results.pop(0) if self.probe_results else NO_CONTRADICTION
+        else:
+            self.sources.append(source)
+            result = self.results.pop(0)
         if result == UNAVAILABLE:
             raise LeanUnavailableError("Lean is not installed")
         if result == TIMEOUT:

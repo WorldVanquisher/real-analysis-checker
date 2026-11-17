@@ -7,7 +7,9 @@ Rules from the specs that this module enforces:
 * when the translation departs from the student's steps, say so in the
   headline, naming the steps;
 * when the cause of a failure could not be confidently identified, say that
-  explicitly instead of guessing.
+  explicitly instead of guessing;
+* when Lean proved the formal hypotheses contradictory, never present an
+  acceptance as meaningful.
 """
 
 from __future__ import annotations
@@ -28,6 +30,18 @@ from ra_checker.models import (
 Level = Literal["success", "warning", "error", "info"]
 
 NOT_CONFIDENT = "We cannot confidently identify the mathematical error."
+CONTRADICTORY_BEFORE_CONFIRMING = (
+    "Lean proved that the hypotheses of this formal statement contradict each other: "
+    "they can never all hold at once. Anything follows from contradictory hypotheses, so "
+    "Lean would accept almost any proof of this statement. Unless your problem really has "
+    "impossible hypotheses, the formal statement does not match it — answer No and "
+    "clarify the problem."
+)
+CONTRADICTORY_IN_REPORT = (
+    "Lean proved that the hypotheses of the formal statement contradict each other, so "
+    "anything follows from them: Lean's verdict says nothing about your argument. The "
+    "formal statement most likely does not match the problem."
+)
 
 CATEGORY_LABELS: dict[ErrorCategory, str] = {
     ErrorCategory.MATHEMATICAL_REASONING: "Mathematical reasoning error",
@@ -65,6 +79,12 @@ class Headline:
 
 def headline(report: CheckReport) -> Headline:
     status = report.status
+    if status is VerificationStatus.VERIFIED and has_contradictory_hypotheses(report):
+        return Headline(
+            "warning",
+            "Lean accepted the formal proof, but the formal hypotheses contradict each other.",
+            CONTRADICTORY_IN_REPORT,
+        )
     if status is VerificationStatus.VERIFIED:
         return _verified_headline(report.fidelity)
     if status is VerificationStatus.VERIFICATION_FAILED:
@@ -90,6 +110,10 @@ def headline(report: CheckReport) -> Headline:
         "The check could not be completed.",
         f"{report.status_detail} Nothing was verified; please try again.",
     )
+
+
+def has_contradictory_hypotheses(report: CheckReport) -> bool:
+    return report.statement is not None and report.statement.contradictory_hypotheses is True
 
 
 def _verified_headline(fidelity: FidelitySummary | None) -> Headline:
