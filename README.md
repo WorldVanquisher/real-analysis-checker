@@ -5,15 +5,13 @@ A student types a problem and their proof; the app formalizes both in
 **Lean 4 + Mathlib**, runs the real Lean checker, and explains where and why
 verification failed — in language a beginner can follow.
 
-> **Status: Milestone B5 built — the checking engine is complete up to the
-> user interface.** Real Lean verification, student-friendly ε–N definitions
-> (each proven equivalent to Mathlib), 8 Lean-verified reference exercises, and
-> the LLM stages (reading the problem, formalizing the statement, translating
-> the proof with a strictly bounded repair loop) are built and tested with a
-> stand-in LLM against real Lean, as is error analysis (locating a Lean error
-> to the student's step and explaining it with guardrails). Live LLM checks are
-> waiting for an API key. There is no user interface yet. Next up is B7 (the
-> pipeline and the Streamlit app); see
+> **Status: Milestone B7 built — the basic version works end to end** with
+> real Lean: a Streamlit app, a two-phase check (confirm the formal statement,
+> then verify the proof), student-friendly ε–N definitions, 8 Lean-verified
+> reference exercises, a strictly bounded repair loop, and error localization
+> with guarded explanations. Every LLM stage is tested with a stand-in LLM
+> against real Lean; **runs against the real Claude API are still pending an
+> API key.** Next up is B8 (basic release); see
 > [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## How it will work
@@ -116,6 +114,21 @@ Lean `v4.36.0` with Mathlib `v4.36.0`.
 
 The app finds `lake` on your PATH or in `~/.elan/bin`, so step 1's new
 terminal is only needed for running `lake` by hand.
+
+## Running the app
+
+After installing Lean and Mathlib (below) and setting `ANTHROPIC_API_KEY`
+(see Configuration), start the app from the project root:
+
+```bash
+streamlit run src/ra_checker/ui/app.py
+```
+
+It opens in your browser. Type the problem and your proof, press **Formalize
+the statement**, check that the Lean statement says what the problem says, and
+press **Yes, it matches — check my proof**. A check takes about half a minute,
+most of it Lean loading Mathlib. If something is missing (API key, Lean,
+Mathlib), the app says what and disables checking.
 
 ## Configuration
 

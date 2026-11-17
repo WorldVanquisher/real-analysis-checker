@@ -27,8 +27,10 @@ logs/
 *.log
 eval/results/
 
-# Editors / OS
+# Editors / OS / local tooling
 .vscode/
 .idea/
+.claude/launch.json
+.streamlit/secrets.toml
 .DS_Store
 Thumbs.db

@@ -100,9 +100,10 @@ interface with a fake for tests.
 | `analysis/classify.py` | Rule-based Lean error kind from the message text. | error analysis | B5 |
 | `analysis/locate.py` | Maps a diagnostic line to the enclosing `-- [Sk]` tag and the student's step text. | error analysis | B6 |
 | `analysis/explain.py` | LLM explanation with category, origin, confidence, correction direction (§8). | error analysis | B6 |
-| `report/verdict.py` | The deterministic verdict rules of §3 and the fidelity summary. | result presentation | B2/B7 |
-| `pipeline.py` | Orchestrates the steps; two phases (formalize statement, then verify proof). | orchestration | B7 |
-| `ui/app.py`, `ui/components.py` | Streamlit pages and rendering only. | user interface | B7 |
+| `report/verdict.py` | The deterministic verdict rules of §3. | Lean verification | B2 |
+| `report/presentation.py` | Deterministic student-facing wording: headlines, category/origin labels, "cannot confidently identify". | result presentation | B7 |
+| `pipeline.py` | `Checker`: `formalize` (phase 1) → `PendingCheck` → student confirms → `verify` (phase 2) → `CheckReport`. | orchestration | B7 |
+| `ui/app.py`, `ui/components.py`, `ui/services.py` | Streamlit flow, rendering only, and construction of the real checker (or a list of what is missing). | user interface | B7 |
 | `explain/code_explainer.py` | Per-block code explanation grounded in the actual code and verdict. | code explanation | A2 |
 | `explain/proof_mapping.py` | Original-step ↔ Lean-block table with added/omitted/changed flags. | proof mapping | A3 |
 | `analysis/correction.py` | Proposes corrected code, **re-runs it through Lean**, labels it verified only if §3 passes. | enhanced errors | A4 |
@@ -325,14 +326,26 @@ last step with `at_end_of_proof`, and the open goal is shown to the explainer.
 
 ## 10. User interface
 
-Streamlit, two phases held in `st.session_state`:
+Streamlit (implemented in B7), two phases held in `st.session_state`; run
+with `streamlit run src/ra_checker/ui/app.py`:
 
-1. **Formalize.** Problem + proof inputs → parsed hypotheses/goal → original
-   statement and Lean statement side by side with the back-translation →
-   *Confirm* or *Edit*. Clarification questions appear here.
-2. **Verify.** Status badge, generated Lean code, error location (highlighted
-   line and the student's step), explanation, raw Lean message, correction
-   direction, fidelity summary.
+1. **Formalize.** Problem + proof inputs → original problem and Lean
+   statement side by side with the back-translation and any assumed
+   conventions, plus "how we read your proof" (steps, with reworded ones
+   flagged) → *Yes, it matches* or *No — I'll clarify*. Clarification
+   questions and out-of-scope notices appear here. Nothing is sent to Lean for
+   the proof until the student confirms.
+2. **Verify.** Headline from `report/presentation.py`, original problem, the
+   student's proof, formal statement, generated Lean code (with line numbers),
+   verification result, one card per analysed error (location, the student's
+   step, classification and origin, explanation or "cannot confidently
+   identify", a suggested direction labelled "not checked by Lean", the raw
+   Lean message), the step-mapping table, and technical details (models,
+   prompt versions, attempts).
+
+If the API key, Lean or Mathlib is missing, the app lists what is missing and
+disables checking. Tests inject a `Checker` built from fakes through session
+state and drive the app with `streamlit.testing.v1.AppTest`.
 
 Advanced (A1+): a *Quick Check / Learning* toggle. Learning mode adds tabs for
 code explanation, proof mapping, and "Learn Lean" cards with practice, and shows

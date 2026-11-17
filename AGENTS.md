@@ -40,6 +40,7 @@ pip install -e ".[dev]"   # install
 pytest                    # unit tests (no Lean, no network)
 pytest -m lean            # real Lean + Mathlib tests (~11 min)
 pytest -m llm             # live Claude API tests (needs a key; costs money)
+streamlit run src/ra_checker/ui/app.py   # the app
 cd lean && lake build     # rebuild the RaChecker library after editing lean/
 ```
 

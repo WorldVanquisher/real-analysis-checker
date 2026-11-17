@@ -184,14 +184,38 @@ Status legend: ✅ done · 🟡 built, a live check is still pending · ⏳ next
   at the end of a proof is attributed to the last step with the goal passed on.
 * Pending: explanation quality against the real model (API key).
 
-### ⏳ B7 — Pipeline + Streamlit UI
+### 🟡 B7 — Pipeline + Streamlit UI
 
 * Adds dependency: `streamlit`.
-* Files: `src/ra_checker/pipeline.py`, `src/ra_checker/ui/{app,components}.py`,
-  `tests/unit/test_pipeline.py`, `tests/ui/test_app.py` (AppTest with fakes).
+* Files: `src/ra_checker/pipeline.py`, `src/ra_checker/report/presentation.py`,
+  `src/ra_checker/ui/{app,components,services}.py`,
+  `tests/unit/test_{pipeline,presentation,ui_app}.py`,
+  `tests/unit/pipeline_helpers.py`, `tests/lean/test_pipeline_lean.py`,
+  `.claude/launch.json` (local, git-ignored).
 * Accept: the two-phase flow works end to end with fakes; one real end-to-end
   run (real LLM + real Lean) on a reference case is performed and recorded; all
   eight Feature E fields are displayed.
+* Result: 300 unit tests and 2 new real-Lean tests pass. `Checker.formalize`
+  (parse → formalize statement) returns a `PendingCheck` or a final report;
+  `Checker.verify` refuses an unconfirmed statement, then translates, runs
+  Lean, analyses failures and builds a `CheckReport` (re-validated by the
+  model). `report/presentation.py` words every headline deterministically:
+  Lean's acceptance always applies to "the formal proof", unfaithful
+  translations name the departing steps, low confidence says "We cannot
+  confidently identify the mathematical error", and no headline calls the
+  student's proof correct (tested for every status). The Streamlit app is
+  driven headlessly by `AppTest` through the full flow, clarification,
+  failure, input-error, edit and not-ready paths; it shows original problem,
+  student proof, formal statement with back-translation, generated Lean code,
+  verification result, error location, explanation with the raw Lean message,
+  and a suggested direction labelled "not checked by Lean", plus the step
+  mapping. With real Lean and a stand-in LLM, the `sum_of_limits` exercise goes
+  formalize → confirm → `VERIFIED`, and its ε-error variant fails with the
+  explanation at S5. The live app was started and checked in a browser: it
+  finds Lean and Mathlib and reports the missing API key, with checking
+  disabled. Fixed during testing: "No — I'll clarify" left the statement on
+  screen until the next interaction.
+* Pending: the real end-to-end run with the real LLM (needs an API key).
 
 ### ⬜ B8 — Basic release
 
