@@ -14,17 +14,26 @@ Status legend: ✅ done · ⏳ next · ⬜ planned
   `.env.example`, `src/ra_checker/__init__.py`, `tests/test_package.py`.
 * Accept: package installs in a venv; `pytest` passes; repo pushed to GitHub.
 
-### ⏳ B1 — Config, data models, logging
+### ✅ B1 — Config, data models, logging
 
 * Files: `src/ra_checker/config.py`, `models.py`, `logging_setup.py`,
-  `tests/unit/test_config.py`, `tests/unit/test_models.py`.
+  `tests/unit/test_config.py`, `tests/unit/test_models.py`,
+  `tests/unit/test_logging_setup.py`.
 * Adds dependencies: `pydantic`, `python-dotenv`.
 * Accept: missing API key produces a clear error only when the LLM is used (not
   at import); models round-trip to JSON; `VERIFIED` cannot be constructed
   without a Lean run attached (enforced by a model validator); logs never contain
   the key.
+* Result: 63 unit tests pass (`pytest -W error`). `CheckReport` rejects
+  `VERIFIED` without a completed, error-free Lean run of the student-confirmed
+  statement, a proof translation and a fidelity summary — also when loaded from
+  JSON. Logging redacts registered secrets and `sk-ant-…` keys, including in
+  tracebacks.
+* Limitations: the statement check in the model is a substring test; the exact
+  match, `sorry` and axiom rules arrive with `report/verdict.py` in B2. Logging
+  is console-only; a log file can be added if needed.
 
-### ⬜ B2 — Lean environment, runner, diagnostics, safety, verdict
+### ⏳ B2 — Lean environment, runner, diagnostics, safety, verdict
 
 * Install: elan (Lean version manager), the pinned Lean toolchain, Mathlib cache
   (`lake exe cache get`, several GB).

@@ -5,8 +5,8 @@ A student types a problem and their proof; the app formalizes both in
 **Lean 4 + Mathlib**, runs the real Lean checker, and explains where and why
 verification failed — in language a beginner can follow.
 
-> **Status: Milestone B0 — architecture and scaffold.** No checking features
-> are implemented yet. Next up is B1 (config, data models, logging); see
+> **Status: Milestone B1 done — settings, data models and logging.** No
+> checking features work yet. Next up is B2 (Lean environment and runner); see
 > [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## How it will work
@@ -61,7 +61,24 @@ pytest
 
 Lean 4, Mathlib and the LLM API key are needed from milestones B2 and B4
 onwards; installation instructions will be added here when those milestones
-land. API keys are read from environment variables only (see `.env.example`).
+land.
+
+## Configuration
+
+Settings come from environment variables, or from a `.env` file in the project
+root (copy `.env.example`; `.env` is git-ignored). Real environment variables
+win over `.env`. Empty values count as unset.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | — | Needed only when the LLM is called; the app starts without it. |
+| `RA_CHECKER_MODEL` | `claude-opus-5-5` | Claude model used for parsing, translation and explanations. |
+| `RA_LEAN_PROJECT_DIR` | `lean` | Lean project folder; relative paths are resolved from the project root. |
+| `RA_LEAN_TIMEOUT_S` | `120` | Wall-clock limit for one Lean run, in seconds (max 3600). |
+| `RA_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. |
+
+Logs never contain the API key: it is redacted, as is anything shaped like an
+Anthropic key, including inside error tracebacks.
 
 ## Scope
 

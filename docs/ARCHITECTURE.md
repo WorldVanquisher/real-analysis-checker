@@ -109,25 +109,43 @@ interface with a fake for tests.
 | `learning/glossary.py`, `learning/content/` | Curated, Lean-checked concept cards (intro, rw, …) selected by tactics found in the code. | learning content | A5 |
 | `learning/practice.py` | Short exercises whose answers are checked by the real Lean runner. | learning content | A5 |
 
-## 5. Core data models (B1)
+## 5. Core data models (implemented in B1)
 
-Sketch; field names may be refined when implemented.
+`src/ra_checker/models.py`. All models are frozen Pydantic models with tuple
+collections and `extra="forbid"`; student text is stored verbatim.
 
 * `Submission` — `problem_text`, `proof_text`, `mode` (`quick` / `learning`).
-* `ProblemAnalysis` — `hypotheses[]`, `goal`, `proof_steps[]` (`id`, `text`),
-  `ambiguities[]`, `in_scope`, `topic`.
+* `ProblemAnalysis` — `hypotheses`, `goal`, `proof_steps` (`ProofStep`: `id`
+  `S1…`, `text`), `ambiguities`, `in_scope`, `topic`; `needs_clarification`.
 * `FormalStatement` — `lean_statement`, `back_translation`,
-  `assumptions_added[]`, `confirmed_by_student`.
-* `ProofTranslation` — `tactic_block`, `step_map[]` (`step_id`, `status`:
-  `translated` / `added` / `omitted` / `changed`, `note`), `translator_notes`.
-* `LeanRun` — `exit_code`, `timed_out`, `duration_s`, `stdout`, `stderr`,
-  `lean_version`.
+  `assumptions_added`, `confirmed_by_student`.
+* `ProofTranslation` — `tactic_block`, `step_map` (`StepMapping`: `step_id`,
+  `status` `translated` / `added` / `omitted` / `changed`, `note`),
+  `translator_notes`. Student steps use ids `S1, S2, …`; steps the translator
+  adds use `A1, A2, …` and must have status `added`.
+* `FidelitySummary` — `statement_confirmed` and the step ids per status;
+  `from_translation()`; `is_faithful`.
+* `LeanRun` — `source` (the exact file Lean checked), `exit_code`,
+  `timed_out`, `duration_s`, `stdout`, `stderr`, `lean_version`.
 * `Diagnostic` — `line`, `column`, `severity`, `message`, `goal_state`,
   `step_id`.
-* `ErrorAnalysis` — `lean_error_kind`, `category`, `origin`, `confidence`,
-  `location`, `explanation`, `correction_direction`.
-* `CheckReport` — everything above plus `status`, `fidelity`, timestamps,
-  model and prompt versions. Immutable once built.
+* `ErrorAnalysis` — `lean_error_kind`, `category` (the spec categories, with
+  missing assumption and incomplete proof kept separate, plus
+  `formalization_error` and `unknown`), `origin`, `confidence`, `raw_message`,
+  `explanation`, `step_id`, `line`, `correction_direction`.
+* `CheckReport` — `id`, `created_at` (UTC), `submission`, `status`,
+  `status_detail`, all stage outputs above, `llm_model`, `prompt_version`.
+
+`CheckReport` validates its status on construction and on deserialization:
+`VERIFIED` needs a completed Lean run with exit code 0, no error diagnostics,
+no error analyses, a student-confirmed statement that appears in the checked
+source, a proof translation and a fidelity summary; `VERIFICATION_FAILED` needs
+the Lean run; `NEEDS_CLARIFICATION` needs an ambiguous or out-of-scope
+analysis; every non-verified status needs a `status_detail`. This is a last
+line of defence; §3's full rules live in `report/verdict.py`.
+
+Settings (`config.py`) and logging (`logging_setup.py`) are described in the
+README's Configuration section.
 
 ## 6. Lean layer
 
