@@ -135,8 +135,8 @@ Lean `v4.36.0` with Mathlib `v4.36.0`.
    ```
 
 3. **Check the installation** by running the real-Lean tests from the project
-   root (26 tests, about 11 minutes; each check loads Mathlib, about 22 s on a
-   typical Windows laptop):
+   root (34 tests, about 20 minutes; each check loads Mathlib, about 22–30 s
+   on a typical Windows laptop):
 
    ```bash
    pytest -m lean
@@ -191,15 +191,17 @@ report records which model actually answered.
 ## Tests
 
 ```bash
-pytest            # 339 unit tests: no network, no API key, no Lean (~15 s)
-pytest -m lean    # 32 real Lean + Mathlib tests (roughly a quarter of an hour)
+pytest            # 375 unit tests: no network, no API key, no Lean (~15 s)
+pytest -m lean    # 34 real Lean + Mathlib tests (~20 min; last run 19 min 8 s)
 pytest -m llm     # live Claude API calls: needs ANTHROPIC_API_KEY and costs money
 ```
 
 The real-Lean tests cover the verdict rules on real output (including unsound
 tricks such as `native_decide` and an injected axiom), timeouts, the 8
 reference exercises, the translation and repair stages, error localization,
-and the whole pipeline with a stand-in LLM.
+the whole pipeline with a stand-in LLM, corrections (verified only when Lean
+accepts them), every concept-card example and practice solution, and the
+evaluation set's reference statements.
 
 ## Evaluation
 
